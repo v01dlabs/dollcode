@@ -1,0 +1,17 @@
+[package]
+name = "dollcode-wasm"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "WebAssembly bindings for dollcode"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+console_error_panic_hook = "0.1.7"
+dollcode-core = { path = "../core"}
+heapless = "0.8.0"
+js-sys = "0.3.72"
+wasm-bindgen = "0.2.95"
+web-sys = { version = "0.3.72", features = ["console"] }
