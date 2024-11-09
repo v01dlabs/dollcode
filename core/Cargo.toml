@@ -1,0 +1,10 @@
+[package]
+name = "dollcode-core"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Core dollcode encoding and decoding functionality"
+
+[dependencies]
+heapless = "0.8.0"
+owo-colors = "4.1.0"
