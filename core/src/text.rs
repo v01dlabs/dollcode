@@ -160,6 +160,68 @@ impl<'a> Iterator for TextIterator<'a> {
     }
 }
 
+/// Decodes dollcode segments back into text characters
+pub fn decode_text_segment(chars: &[char]) -> Result<char> {
+    // A text segment must be exactly SEGMENT_SIZE chars
+    if chars.len() != SEGMENT_SIZE {
+        return Err(DollcodeError::InvalidInput);
+    }
+
+    // Convert dollcode chars back to base-3 value
+    let mut value = 0usize;
+    for &c in chars {
+        // First multiply by base
+        value = value.checked_mul(3)
+            .ok_or(DollcodeError::Overflow)?;
+
+        // Then add digit value
+        let digit = match c {
+            '▖' => 0,  // Changed to 0-based values
+            '▘' => 1,
+            '▌' => 2,
+            _ => return Err(DollcodeError::InvalidInput),
+        };
+
+        value = value.checked_add(digit)
+            .ok_or(DollcodeError::Overflow)?;
+    }
+
+    // Get the character from our mapping
+    // Note: value is now 0-based so we don't subtract 1
+    CHAR_MAP.get(value)
+        .copied()
+        .ok_or(DollcodeError::InvalidInput)
+}
+
+/// Iterator that decodes dollcode segments back into text
+pub struct TextDecoder<'a> {
+    /// Source dollcode characters
+    chars: core::slice::Chunks<'a, char>,
+    /// Position for error reporting
+    position: usize,
+}
+
+impl<'a> TextDecoder<'a> {
+    /// Creates a new text decoder from dollcode characters
+    #[inline]
+    pub fn new(chars: &'a [char]) -> Self {
+        Self {
+            chars: chars.chunks(SEGMENT_SIZE),
+            position: 0,
+        }
+    }
+}
+
+impl<'a> Iterator for TextDecoder<'a> {
+    type Item = Result<char>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let chunk = self.chars.next()?;
+        self.position += 1;
+        Some(decode_text_segment(chunk))
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -277,5 +339,101 @@ mod tests {
         }
 
         assert_eq!(count, long_text.len());
+    }
+
+    #[test]
+    fn test_decode_text_segment() {
+        // Test decoding individual segments
+        for &c in CHAR_MAP {
+            // Create single-char input
+            let bytes = [c as u8];
+            let input = core::str::from_utf8(&bytes).unwrap();
+
+            // First encode
+            let mut iter = TextIterator::new(input);
+            let segment = iter.next().unwrap().unwrap();
+
+            // Then decode
+            let decoded = decode_text_segment(segment.as_chars()).unwrap();
+
+            assert_eq!(c, decoded,
+                "Character '{}' did not round-trip correctly", c);
+        }
+    }
+
+    #[test]
+    fn test_text_decoder() {
+        let test_strings = [
+            "A",  // Start with simple single char
+            "B",
+            "1",
+            "!",
+            "AB",  // Then try pairs
+            "12",
+            "Hello",  // Then longer strings
+            "123!@#",
+        ];
+
+        for &input in &test_strings {
+            // First encode the string
+            let mut encoded: Vec<char, 128> = Vec::new();
+            for result in TextIterator::new(input) {
+                let segment = result.unwrap();
+                encoded.extend_from_slice(segment.as_chars()).unwrap();
+            }
+
+            // Then decode back
+            let mut decoded = heapless::String::<128>::new();
+            for result in TextDecoder::new(&encoded) {
+                decoded.push(result.unwrap()).unwrap();
+            }
+
+            assert_eq!(input, decoded.as_str(),
+                "String '{}' did not round-trip correctly", input);
+        }
+    }
+
+    #[test]
+    fn test_single_chars() {
+        // Test each character individually
+        for &c in CHAR_MAP {
+            // Encode
+            let bytes = [c as u8];
+            let input = core::str::from_utf8(&bytes).unwrap();
+            let mut encoded: Vec<char, 32> = Vec::new();
+
+            for result in TextIterator::new(input) {
+                let segment = result.unwrap();
+                encoded.extend_from_slice(segment.as_chars()).unwrap();
+            }
+
+            // Decode
+            let decoded = decode_text_segment(&encoded).unwrap();
+            assert_eq!(c, decoded);
+        }
+    }
+
+    #[test]
+    fn test_invalid_decode() {
+        // Test invalid segment sizes
+        let short_segment = ['▖', '▘', '▌', '▖'];
+        assert!(matches!(
+            decode_text_segment(&short_segment),
+            Err(DollcodeError::InvalidInput)
+        ));
+
+        // Test invalid characters
+        let invalid_chars = ['A', 'B', 'C', 'D', 'E'];
+        assert!(matches!(
+            decode_text_segment(&invalid_chars),
+            Err(DollcodeError::InvalidInput)
+        ));
+
+        // Test segment with mixed valid/invalid chars
+        let mixed_chars = ['▖', '▘', 'A', '▌', '▖'];
+        assert!(matches!(
+            decode_text_segment(&mixed_chars),
+            Err(DollcodeError::InvalidInput)
+        ));
     }
 }
