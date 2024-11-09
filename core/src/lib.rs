@@ -79,7 +79,7 @@ pub fn to_dollcode(mut num: u64) -> Result<Dollcode> {
     }
 
     let mut dollcode = Dollcode::new();
-    let mut output = [0u8; MAX_DOLLCODE_SIZE];  // Stack-allocated buffer
+    let mut output = [0u8; MAX_DOLLCODE_SIZE]; // Stack-allocated buffer
     let mut digits = 0;
 
     // Convert to base-3 with digits representing values 1-3
@@ -88,9 +88,9 @@ pub fn to_dollcode(mut num: u64) -> Result<Dollcode> {
             return Err(DollcodeError::Overflow);
         }
 
-        let rem = (num - 1) % 3;  // Get 0-2 remainder
-        output[digits] = rem as u8;  // Store remainder directly
-        num = (num - 1 - rem) / 3;  // Reduce number
+        let rem = (num - 1) % 3; // Get 0-2 remainder
+        output[digits] = rem as u8; // Store remainder directly
+        num = (num - 1 - rem) / 3; // Reduce number
         digits += 1;
     }
 
@@ -116,21 +116,17 @@ pub fn from_dollcode(chars: &[char]) -> Result<u64> {
     // Process each character, building up the number
     for &c in chars {
         // Multiply by base
-        result = result
-            .checked_mul(3)
-            .ok_or(DollcodeError::Overflow)?;
+        result = result.checked_mul(3).ok_or(DollcodeError::Overflow)?;
 
         // Map character to value and add
         let val = match c {
-            '▖' => 1,  // Maps to 1
-            '▘' => 2,  // Maps to 2
-            '▌' => 3,  // Maps to 3
+            '▖' => 1, // Maps to 1
+            '▘' => 2, // Maps to 2
+            '▌' => 3, // Maps to 3
             _ => return Err(DollcodeError::InvalidInput),
         };
 
-        result = result
-            .checked_add(val)
-            .ok_or(DollcodeError::Overflow)?;
+        result = result.checked_add(val).ok_or(DollcodeError::Overflow)?;
     }
 
     Ok(result)
@@ -145,19 +141,19 @@ mod tests {
     fn test_encoding_sequence() {
         let cases = [
             (0, ""),
-            (1, "▖"),      // 1
-            (2, "▘"),      // 2
-            (3, "▌"),      // 3
-            (4, "▖▖"),     // 1×3 + 1
-            (5, "▖▘"),     // 1×3 + 2
-            (6, "▖▌"),     // 1×3 + 3
-            (7, "▘▖"),     // 2×3 + 1
-            (8, "▘▘"),     // 2×3 + 2
-            (9, "▘▌"),     // 2×3 + 3
-            (10, "▌▖"),    // 3×3 + 1
-            (11, "▌▘"),    // 3×3 + 2
-            (12, "▌▌"),    // 3×3 + 3
-            (13, "▖▖▖"),   // 1×9 + 1×3 + 1
+            (1, "▖"),    // 1
+            (2, "▘"),    // 2
+            (3, "▌"),    // 3
+            (4, "▖▖"),   // 1×3 + 1
+            (5, "▖▘"),   // 1×3 + 2
+            (6, "▖▌"),   // 1×3 + 3
+            (7, "▘▖"),   // 2×3 + 1
+            (8, "▘▘"),   // 2×3 + 2
+            (9, "▘▌"),   // 2×3 + 3
+            (10, "▌▖"),  // 3×3 + 1
+            (11, "▌▘"),  // 3×3 + 2
+            (12, "▌▌"),  // 3×3 + 3
+            (13, "▖▖▖"), // 1×9 + 1×3 + 1
             // Start at 0
             //     '▖' -> 1:  0 * 3 + 1 = 1
             //     '▖' -> 1:  1 * 3 + 1 = 4
@@ -234,13 +230,7 @@ mod tests {
 
     #[test]
     fn test_large_numbers() {
-        let large_cases = [
-            1000,
-            10_000,
-            100_000,
-            1_000_000,
-            440729,
-        ];
+        let large_cases = [1000, 10_000, 100_000, 1_000_000, 440729];
 
         for &num in &large_cases {
             let encoded = to_dollcode(num).unwrap();
