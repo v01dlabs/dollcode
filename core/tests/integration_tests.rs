@@ -1,9 +1,9 @@
 use dollcode_core::{
     from_dollcode,
-    text::{TextIterator, CHAR_MAP as TEXT_CHAR_MAP},
+    text::{TextDecoder, TextIterator, CHAR_MAP as TEXT_CHAR_MAP},
     to_dollcode, CHAR_MAP,
 };
-use heapless::Vec;
+use heapless::{String, Vec};
 
 const TEST_VEC_SIZE: usize = 256;
 
@@ -46,27 +46,45 @@ fn test_valid_dollcode_for_all_chars() {
 }
 
 #[test]
-fn test_dollcode_segments_roundtrip() {
-    use heapless::Vec;
-    const TEST_VEC_SIZE: usize = 256;
-
-    // Test encoding text to dollcode and back
-    let test_strings = ["Hello", "123", "ABC", "!@#", " ", "Mixed-Case_123!"];
+fn test_text_encoding_decoding_roundtrip() {
+    let test_strings = [
+        "Hello, World!",
+        "123-456-789",
+        "UPPER lower 12345",
+        "!@#$%^&*()",
+        "Mixed_Case_With_Numbers_123",
+        // Add some edge cases
+        "AAAAA", // repeated chars
+        "     ", // all spaces
+        "!!!!!", // repeated symbols
+        "12321", // palindrome
+        "aA1!@", // one of each type
+    ];
 
     for &input in &test_strings {
-        // Convert string to dollcode segments
-        let mut dollcode_chars: Vec<char, TEST_VEC_SIZE> = Vec::new();
-
-        // Collect all dollcode chars from text segments
+        // First encode to dollcode
+        let mut encoded: Vec<char, 512> = Vec::new();
         for result in TextIterator::new(input) {
             let segment = result.unwrap();
-            for &c in segment.as_chars() {
-                dollcode_chars.push(c).unwrap();
-            }
+            encoded.extend_from_slice(segment.as_chars()).unwrap();
         }
 
-        // Verify these are valid dollcode chars
-        for &c in &dollcode_chars {
+        // Then decode back
+        let mut decoded = String::<512>::new();
+        for result in TextDecoder::new(&encoded) {
+            decoded.push(result.unwrap()).unwrap();
+        }
+
+        // Verify roundtrip
+        assert_eq!(
+            input,
+            decoded.as_str(),
+            "Failed roundtrip for string: {}",
+            input
+        );
+
+        // Verify all encoded chars are valid dollcode
+        for &c in &encoded {
             assert!(
                 CHAR_MAP.contains(&c),
                 "Invalid dollcode char produced: {}",
@@ -74,9 +92,13 @@ fn test_dollcode_segments_roundtrip() {
             );
         }
 
-        // TODO: Add function to decode dollcode back to text
-        // let decoded = decode_text(&dollcode_chars);
-        // assert_eq!(input, decoded);
+        // Verify encoded length
+        assert_eq!(
+            encoded.len(),
+            input.len() * 5,
+            "Incorrect encoded length for: {}",
+            input
+        );
     }
 }
 
@@ -84,7 +106,7 @@ fn test_dollcode_segments_roundtrip() {
 fn test_mixed_numeric_and_text() {
     // Test that numeric dollcode doesn't conflict with text dollcode
     let numeric_cases = [
-        1, 42, 100, 999  // Changed to avoid 5-digit sequences
+        1, 42, 100, 999, // Changed to avoid 5-digit sequences
     ];
 
     for &num in &numeric_cases {
@@ -93,7 +115,7 @@ fn test_mixed_numeric_and_text() {
         // Verify it's not exactly 5 digits (which would look like a text segment)
         if numeric_dollcode.len() == 5 {
             // If it is 5 digits, verify it doesn't decode as valid text
-            let is_valid_text = TextIterator::new("A")  // Get a valid text segment to compare
+            let is_valid_text = TextIterator::new("A") // Get a valid text segment to compare
                 .next()
                 .unwrap()
                 .unwrap()
@@ -101,15 +123,17 @@ fn test_mixed_numeric_and_text() {
                 .iter()
                 .all(|c| CHAR_MAP.contains(c));
 
-            assert!(!is_valid_text,
-                "Numeric value {} produced a valid text segment pattern", num);
+            assert!(
+                !is_valid_text,
+                "Numeric value {} produced a valid text segment pattern",
+                num
+            );
         }
 
         let roundtrip = from_dollcode(numeric_dollcode.as_chars()).unwrap();
         assert_eq!(num, roundtrip);
     }
 }
-
 
 #[test]
 fn test_all_ascii_printable() {
@@ -121,13 +145,16 @@ fn test_all_ascii_printable() {
 
         if let Some(Ok(segment)) = iter.next() {
             // Verify segment length
-            assert_eq!(segment.len(), 5,
-                "Wrong segment length for char '{}'", c);
+            assert_eq!(segment.len(), 5, "Wrong segment length for char '{}'", c);
 
             // Verify each dollcode char is valid
             for &dc in segment.as_chars() {
-                assert!(CHAR_MAP.contains(&dc),
-                    "Invalid dollcode char '{}' produced for '{}'", dc, c);
+                assert!(
+                    CHAR_MAP.contains(&dc),
+                    "Invalid dollcode char '{}' produced for '{}'",
+                    dc,
+                    c
+                );
             }
         } else {
             panic!("Failed to encode character: {}", c);
@@ -219,5 +246,99 @@ fn test_edge_patterns() {
                 );
             }
         }
+    }
+}
+
+#[test]
+fn test_text_decode_errors() {
+    // Verify our segment size math
+    assert!(
+        3_usize.pow(4) < TEXT_CHAR_MAP.len(),
+        "4 base-3 digits not enough"
+    );
+    assert!(
+        3_usize.pow(5) > TEXT_CHAR_MAP.len(),
+        "5 base-3 digits sufficient"
+    );
+
+    // Test various invalid inputs
+    let invalid_cases = [
+        // Wrong segment size (must be exactly 5)
+        &['▖', '▘', '▌'][..],      // Too short
+        &['▖', '▘', '▌', '▖'][..], // Too short
+        // Invalid characters mixed with valid ones
+        &['A', '▖', '▘', '▌', '▖'][..], // Invalid first char
+        &['▖', 'B', '▘', '▌', '▖'][..], // Invalid middle char
+        &['▖', '▘', '▌', '▖', 'C'][..], // Invalid last char
+        // Empty input
+        &[][..],
+        // Non-dollcode characters
+        &['1', '2', '3', '4', '5'][..],
+        // Maximum value in base-3 with 5 digits is 3^5-1 = 242
+        // Values above TEXT_CHAR_MAP.len() should error
+        &['▌', '▌', '▌', '▌', '▌'][..], // This is (3,3,3,3,3) in base-3 = 242
+    ];
+
+    for &invalid in &invalid_cases {
+        let mut decoder = TextDecoder::new(invalid);
+        match decoder.next() {
+            None => {
+                // Empty input is fine
+                assert_eq!(invalid.len(), 0, "Only empty input should give None");
+            }
+            Some(Ok(c)) => {
+                panic!(
+                    "Expected error but got char: {} from input: {:?}",
+                    c, invalid
+                );
+            }
+            Some(Err(_)) => {
+                // This is what is expected for invalid inputs
+            }
+        }
+    }
+}
+
+#[test]
+fn test_mixed_encoding_patterns() {
+    // Test mixing text and numeric encodings
+    let test_cases = [
+        ("A", 1),
+        ("B", 42),
+        ("123", 999),
+        ("ABC", 12345),
+        ("!!!", 98765),
+    ];
+
+    for &(text, number) in &test_cases {
+        // Encode text
+        let mut text_encoded: Vec<char, 128> = Vec::new();
+        for result in TextIterator::new(text) {
+            let segment = result.unwrap();
+            text_encoded.extend_from_slice(segment.as_chars()).unwrap();
+        }
+
+        // Encode number
+        let num_encoded = to_dollcode(number).unwrap();
+
+        // Verify they're different
+        assert_ne!(
+            text_encoded.as_slice(),
+            num_encoded.as_chars(),
+            "Text and numeric encoding produced same result: {} vs {}",
+            text,
+            number
+        );
+
+        // Verify text decodes correctly
+        let mut decoded = String::<128>::new();
+        for result in TextDecoder::new(&text_encoded) {
+            decoded.push(result.unwrap()).unwrap();
+        }
+        assert_eq!(text, decoded.as_str());
+
+        // Verify number decodes correctly
+        let num_decoded = from_dollcode(num_encoded.as_chars()).unwrap();
+        assert_eq!(number, num_decoded);
     }
 }
