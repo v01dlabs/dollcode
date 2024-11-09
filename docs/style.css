@@ -1,0 +1,378 @@
+@import url('font.css');
+
+:root {
+    --bg-base: #0F1214;
+    --bg-base-p3: color(display-p3 0.059 0.071 0.078);
+    --bg-alt: #161B1E;
+    --bg-alt-p3: color(display-p3 0.086 0.106 0.118);
+    --bg-raised: #1D2428;
+    --bg-raised-p3: color(display-p3 0.114 0.141 0.157);
+
+    --primary: #00E49A;
+    --primary-p3: color(display-p3 0 0.894 0.604);
+    --primary-rgb: 0, 228, 154;
+    --primary-subtle: rgba(0, 228, 154, 0.15);
+    --primary-subtle-p3: color(display-p3 0 0.894 0.604 / 0.15);
+
+    --secondary: #B86EFF;
+    --secondary-p3: color(display-p3 0.722 0.431 1);
+    --secondary-rgb: 184, 110, 255;
+    --secondary-subtle: rgba(184, 110, 255, 0.15);
+    --secondary-subtle-p3: color(display-p3 0.722 0.431 1 / 0.15);
+
+    --text: #E6EDF3;
+    --text-p3: color(display-p3 0.902 0.929 0.953);
+    --text-rgb: 230, 237, 243;
+
+    --text-dim: #8B949E;
+    --text-dim-p3: color(display-p3 0.545 0.580 0.620);
+    --text-dim-rgb: 139, 148, 158;
+
+    --error: #ff2e5f;
+    --error-p3: color(display-p3 1 0.180 0.373);
+    --error-rgb: 255, 46, 95;
+    --error-subtle: rgba(255, 46, 95, 0.15);
+    --error-subtle-p3: color(display-p3 1 0.180 0.373 / 0.15);
+
+    --border: rgba(230, 237, 243, 0.1);
+    --border-p3: color(display-p3 0.902 0.929 0.953 / 0.1);
+
+    --pulse-color: var(--primary-subtle);
+    --pulse-color-p3: var(--primary-subtle-p3);
+
+    font-family: 'Mono', monospace;
+}
+
+body {
+    margin: 0;
+    min-height: 100vh;
+    background: var(--bg-base);
+    background: var(--bg-base-p3);
+    color: var(--text);
+    color: var(--text-p3);
+    line-height: 1.6;
+}
+
+.header {
+    background: var(--bg-alt);
+    background: var(--bg-alt-p3);
+    border-bottom: 1px solid var(--border);
+    border-bottom: 1px solid var(--border-p3);
+    padding: 1.5rem;
+}
+
+.header h1 {
+    max-width: 1200px;
+    margin: 0 auto;
+    font-size: 1.25rem;
+    font-weight: normal;
+}
+
+.main {
+    padding: 2rem 1.5rem;
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+.container {
+    background: var(--bg-raised);
+    background: var(--bg-raised-p3);
+    border: 1px solid var(--border);
+    border: 1px solid var(--border-p3);
+    border-radius: 6px;
+    padding: 1.5rem;
+    margin: 2rem 0;
+}
+
+.input-group {
+    display: flex;
+    gap: 1rem;
+    align-items: center;
+    flex-wrap: wrap;
+    margin-bottom: 1.5rem;
+}
+
+input[type="text"] {
+    background: var(--bg-base);
+    background: var(--bg-base-p3);
+    border: 1px solid var(--border);
+    border: 1px solid var(--border-p3);
+    border-radius: 4px;
+    color: var(--text);
+    color: var(--text-p3);
+    padding: 0.75rem 1rem;
+    font-family: inherit;
+    font-size: 1rem;
+    min-width: 335px;
+    min-height: 44px;
+    transition: all 0.2s ease;
+}
+
+input[type="text"]:focus {
+    outline: none;
+    border-color: var(--primary);
+    border-color: var(--primary-p3);
+    box-shadow: 0 0 0 2px var(--primary-subtle);
+    box-shadow: 0 0 0 2px var(--primary-subtle-p3);
+}
+
+input[type="text"]:invalid {
+    border-color: var(--error);
+    border-color: var(--error-p3);
+    background: var(--error-subtle);
+    background: var(--error-subtle-p3);
+}
+
+.error-message {
+    color: var(--error);
+    color: var(--error-p3);
+    font-size: 0.875rem;
+    margin-top: 0.5rem;
+}
+
+.radio-group {
+    display: flex;
+    gap: 1rem;
+    align-items: center;
+}
+
+.radio-option {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    min-height: 44px;
+    padding: 0.5rem 0;
+}
+
+input[type="radio"] {
+    appearance: none;
+    width: 16px;
+    height: 16px;
+    border: 1px solid var(--border);
+    border: 1px solid var(--border-p3);
+    border-radius: 50%;
+    margin: 0;
+    display: grid;
+    place-content: center;
+}
+
+input[type="radio"]:checked {
+    border-color: var(--primary);
+    border-color: var(--primary-p3);
+    background: var(--primary-subtle);
+    background: var(--primary-subtle-p3);
+}
+
+input[type="radio"]::before {
+    content: "";
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    transform: scale(0);
+    transition: transform 0.2s;
+    box-shadow: inset 1em 1em var(--primary);
+    box-shadow: inset 1em 1em var(--primary-p3);
+}
+
+input[type="radio"]:checked::before {
+    transform: scale(1);
+}
+
+label {
+    color: var(--text-dim);
+    color: var(--text-dim-p3);
+    user-select: none;
+    cursor: pointer;
+}
+
+.output-container {
+    margin-top: 2rem;
+}
+
+.output-label {
+    color: var(--text-dim);
+    color: var(--text-dim-p3);
+    font-size: 0.875rem;
+    margin-bottom: 0.5rem;
+}
+
+#output {
+    background: var(--bg-base);
+    background: var(--bg-base-p3);
+    border: 1px solid var(--border);
+    border: 1px solid var(--border-p3);
+    border-radius: 6px;
+    padding: 2rem;
+    font-size: 2rem;
+    min-height: 3rem;
+    color: var(--primary);
+    color: var(--primary-p3);
+    display: flex;
+    align-items: center;
+    transition: all 0.3s ease;
+    animation: pulse-glow 3s ease-in-out infinite;
+    will-change: transform, box-shadow;
+}
+
+#output:hover {
+    color: var(--secondary);
+    color: var(--secondary-p3);
+    --pulse-color: var(--secondary-subtle);
+    --pulse-color-p3: var(--secondary-subtle-p3);
+}
+
+.info {
+    margin-top: 3rem;
+    padding-top: 2rem;
+    border-top: 1px solid var(--border);
+    border-top: 1px solid var(--border-p3);
+}
+
+.info h2 {
+    font-size: 1.125rem;
+    font-weight: normal;
+    color: var(--primary);
+    color: var(--primary-p3);
+    margin-bottom: 1rem;
+}
+
+.demo {
+    color: var(--secondary);
+    color: var(--secondary-p3);
+    background: var(--bg-base);
+    background: var(--bg-base-p3);
+    padding: 1.5rem;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    border: 1px solid var(--border-p3);
+    font-size: 1.125rem;
+    line-height: 2;
+    margin-top: 1rem;
+    overflow-x: auto;
+    transition: color 0.3s ease;
+}
+
+.demo::selection {
+    color: var(--primary);
+    color: var(--primary-p3);
+    background: var(--primary-subtle);
+    background: var(--primary-subtle-p3);
+}
+
+@keyframes pulse-glow {
+    0% {
+        box-shadow: 0 0 0 0 var(--pulse-color);
+        box-shadow: 0 0 0 0 var(--pulse-color-p3);
+        transform: translateY(0);
+    }
+    50% {
+        box-shadow: 0 0 20px 2px var(--pulse-color);
+        box-shadow: 0 0 20px 2px var(--pulse-color-p3);
+        transform: translateY(-1px);
+    }
+    100% {
+        box-shadow: 0 0 0 0 var(--pulse-color);
+        box-shadow: 0 0 0 0 var(--pulse-color-p3);
+        transform: translateY(0);
+    }
+}
+
+::selection {
+    background: var(--primary-subtle);
+    background: var(--primary-subtle-p3);
+    color: var(--primary);
+    color: var(--primary-p3);
+}
+
+@media (max-width: 640px) {
+    .input-group {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    input[type="text"] {
+        min-width: unset;
+        width: 100%;
+    }
+
+    .radio-group {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    #output {
+        font-size: 1.5rem;
+        padding: 1.5rem;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    * {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+    }
+
+    #output {
+        animation: none;
+        transform: none !important;
+    }
+}
+
+@media (forced-colors: active) {
+    * {
+        border-color: CanvasText;
+    }
+
+    #output {
+        border: 2px solid CanvasText;
+        forced-color-adjust: none;
+    }
+}
+
+@media print {
+    :root {
+        --bg-base: #ffffff;
+        --text: #000000;
+        --primary: #000000;
+        --secondary: #666666;
+        --border: #cccccc;
+    }
+
+    @page {
+        margin: 2cm;
+        size: auto;
+    }
+
+    body {
+        background: none;
+    }
+
+    .container {
+        break-inside: avoid;
+        page-break-inside: avoid;
+    }
+
+    #output {
+        border: 1pt solid #000;
+        animation: none;
+        box-shadow: none;
+        page-break-inside: avoid;
+    }
+
+    .radio-group,
+    input[type="text"] {
+        display: none;
+    }
+
+    * {
+        print-color-adjust: exact;
+    }
+}
+
+@supports (color: color(display-p3 0 0 0)) {
+    :root {
+        --current-color-space: 'p3';
+    }
+}

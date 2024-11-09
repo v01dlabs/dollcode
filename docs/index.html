@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="color-scheme" content="dark">
+    <meta name="theme-color" content="#0F1214">
+    <meta http-equiv="Content-Security-Policy" content="
+    default-src 'self';
+    script-src 'self' 'wasm-unsafe-eval';
+    style-src 'self' 'unsafe-inline';
+    font-src 'self' data:;
+    img-src 'self';
+    base-uri 'none';
+    form-action 'none';
+    frame-ancestors 'none'">
+    <meta http-equiv="X-Content-Type-Options" content="nosniff">
+    <meta http-equiv="X-Frame-Options" content="DENY">
+    <meta http-equiv="Permissions-Policy" content="interest-cohort=()">
+    <link rel="stylesheet" href="font.css">
+    <link rel="stylesheet" href="style.css">
+    <title>dollcode</title>
+</head>
+<body>
+    <header class="header" role="banner">
+        <h1>dollcode</h1>
+    </header>
+
+    <main id="main" class="main" role="main">
+        <div class="container">
+            <div class="input-group">
+                <input type="text"
+                       id="input"
+                       aria-label="Input value"
+                       placeholder="Enter a number, text, or dollcode"
+                       value="242424">
+
+                <div class="radio-group" role="radiogroup" aria-label="Input format">
+                    <div class="radio-option">
+                        <input type="radio" id="decimal" name="radix" value="10" checked>
+                        <label for="decimal">Decimal</label>
+                    </div>
+
+                    <div class="radio-option">
+                        <input type="radio" id="hex" name="radix" value="16">
+                        <label for="hex">Hexadecimal</label>
+                    </div>
+
+                    <div class="radio-option">
+                        <input type="radio" id="text" name="radix" value="text">
+                        <label for="text">Text</label>
+                    </div>
+
+                    <div class="radio-option">
+                        <input type="radio" id="dollcode" name="radix" value="dollcode">
+                        <label for="dollcode">dollcode</label>
+                    </div>
+                </div>
+            </div>
+
+            <div class="output-container">
+                <div class="output-label" id="output-label">Output</div>
+                <div id="output" role="region" aria-labelledby="output-label" aria-live="polite">▌▘▌▘▘▖▖▘▖▘▌</div>
+            </div>
+        </div>
+
+        <div class="info">
+            <h2>About dollcode</h2>
+            <p>
+                dollcode is a trinary encoding system using box-drawing characters (▖, ▘, ▌)
+                to represent numbers. Each character represents a trinary digit, with the most
+                significant digit on the left.
+            </p>
+
+            <div class="demo" aria-label="Example dollcodes">
+                1-16: ▖ ▘ ▌ ▖▖ ▖▘ ▖▌ ▘▖ ▘▘ ▘▌ ▌▖ ▌▘ ▌▌ ▖▖▖ ▖▖▘ ▖▖▌ ▖▘▖
+            </div>
+        </div>
+    </main>
+</body>
+</html>
