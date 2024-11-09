@@ -171,24 +171,23 @@ pub fn decode_text_segment(chars: &[char]) -> Result<char> {
     let mut value = 0usize;
     for &c in chars {
         // First multiply by base
-        value = value.checked_mul(3)
-            .ok_or(DollcodeError::Overflow)?;
+        value = value.checked_mul(3).ok_or(DollcodeError::Overflow)?;
 
         // Then add digit value
         let digit = match c {
-            '▖' => 0,  // Changed to 0-based values
+            '▖' => 0, // Changed to 0-based values
             '▘' => 1,
             '▌' => 2,
             _ => return Err(DollcodeError::InvalidInput),
         };
 
-        value = value.checked_add(digit)
-            .ok_or(DollcodeError::Overflow)?;
+        value = value.checked_add(digit).ok_or(DollcodeError::Overflow)?;
     }
 
     // Get the character from our mapping
     // Note: value is now 0-based so we don't subtract 1
-    CHAR_MAP.get(value)
+    CHAR_MAP
+        .get(value)
         .copied()
         .ok_or(DollcodeError::InvalidInput)
 }
@@ -356,21 +355,16 @@ mod tests {
             // Then decode
             let decoded = decode_text_segment(segment.as_chars()).unwrap();
 
-            assert_eq!(c, decoded,
-                "Character '{}' did not round-trip correctly", c);
+            assert_eq!(c, decoded, "Character '{}' did not round-trip correctly", c);
         }
     }
 
     #[test]
     fn test_text_decoder() {
         let test_strings = [
-            "A",  // Start with simple single char
-            "B",
-            "1",
-            "!",
-            "AB",  // Then try pairs
-            "12",
-            "Hello",  // Then longer strings
+            "A", // Start with simple single char
+            "B", "1", "!", "AB", // Then try pairs
+            "12", "Hello", // Then longer strings
             "123!@#",
         ];
 
@@ -388,8 +382,12 @@ mod tests {
                 decoded.push(result.unwrap()).unwrap();
             }
 
-            assert_eq!(input, decoded.as_str(),
-                "String '{}' did not round-trip correctly", input);
+            assert_eq!(
+                input,
+                decoded.as_str(),
+                "String '{}' did not round-trip correctly",
+                input
+            );
         }
     }
 
