@@ -407,13 +407,7 @@ mod tests {
 
     #[test]
     fn test_large_numbers() {
-        let large_cases = [
-            1000,
-            10_000,
-            100_000,
-            1_000_000,
-            440729,
-        ];
+        let large_cases = [1000, 10_000, 100_000, 1_000_000, 440729];
 
         for &num in &large_cases {
             let encoded = to_dollcode(num).unwrap();
