@@ -1,4 +1,18 @@
 //! Error types for dollcode operations.
+//!
+//! This module provides error handling for the dollcode crate.
+//! All error types and operations avoid heap allocations to maintain #[no_std]
+//! compatibility.
+//!
+//! # Examples
+//!
+//! ```rust
+//! #[test]
+//! fn test_invalid_decode() {
+//!    let result = dollcode::from_dollcode(&['A', 'B', 'C']);
+//!    assert!(matches!(result, Err(DollcodeError::InvalidInput)));
+//!}
+//!```
 
 use core::fmt;
 use owo_colors::OwoColorize;
@@ -6,11 +20,27 @@ use owo_colors::OwoColorize;
 /// Errors that can occur during dollcode operations
 #[derive(Debug)]
 pub enum DollcodeError {
-    /// Input validation failed
+    /// Input validation failed due to invalid characters or sequence
+    ///
+    /// This error occurs when:
+    /// - Input contains characters that aren't valid dollcode (▖,▘,▌)
+    /// - Text segment has incorrect length
+    /// - Invalid sequence structure
     InvalidInput,
-    /// Invalid character for text encoding
+
+    /// Invalid character encountered during text encoding
+    ///
+    /// Contains the invalid character and its position in the input.
+    /// This error occurs when attempting to encode characters that
+    /// aren't in the supported ASCII set.
     InvalidChar(char, usize),
-    /// Value overflow occurred
+
+    /// Value overflow occurred during encoding or decoding
+    ///
+    /// This error occurs when:
+    /// - Encoding a number that's too large
+    /// - Decoding a sequence that would overflow u64
+    /// - Text segment position overflow
     Overflow,
 }
 
@@ -28,7 +58,7 @@ impl fmt::Display for DollcodeError {
     }
 }
 
-/// Result type from core
+/// Result type specialized for dollcode operations
 pub type Result<T> = core::result::Result<T, DollcodeError>;
 
 #[cfg(test)]

@@ -1,10 +1,55 @@
 #![no_std]
-//! Core dollcode encoding and decoding functionality.
+#![forbid(unsafe_code)]
+#![deny(missing_docs, missing_debug_implementations)]
+#![warn(rust_2018_idioms, unreachable_pub)]
+//! # dollcode
 //!
-//! dollcode is a base-3 encoding system that encodes numbers and text using three box-drawing
-//! characters in base-3: ▌(3), ▖(1), and ▘(2).
+//! A zero-allocation trinary encoding system that represents numbers and text using box-drawing
+//! characters (▖, ▘, ▌).
 //!
-//! # Numeric Encoding
+//! ## Features
+//!
+//! - **Zero Allocation**: All operations use fixed-size buffers and avoid heap allocations
+//! - **#[no_std] Compatible**: Can be used in embedded applications
+//! - **Text Encoding**: Convert ASCII text to dollcode sequences
+//! - **Numeric Encoding**: Convert numbers to base-3 dollcode representation
+//! - **Predictable Memory**: Fixed memory usage regardless of input size
+//!
+//! ## Quick Start
+//!
+//! ```rust
+//! # use dollcode::{to_dollcode, from_dollcode, Result};
+//! # fn main() -> Result<()> {
+//! // Encode a number
+//! let encoded = to_dollcode(42)?;
+//! assert_eq!(encoded.to_string(), "▖▖▖▌");
+//!
+//! // Decode back to number
+//! let decoded = from_dollcode(encoded.as_chars())?;
+//! assert_eq!(decoded, 42);
+//! # Ok(())
+//! # }
+//! ```
+//!
+//!
+//! ## Text Encoding Example
+//!
+//! ```rust
+//! # use dollcode::text::{TextIterator, TextDecoder};
+//! # fn main() -> dollcode::Result<()> {
+//! let text = "Hi!";
+//! let mut encoded = heapless::Vec::<char, 128>::new();
+//!
+//! for segment in TextIterator::new(text) {
+//!     let segment = segment?;
+//!     assert_eq!(segment.as_chars().len(), 5);
+//!     encoded.extend_from_slice(segment.as_chars()).unwrap(); // Use unwrap instead of ? for Vec result
+//! }
+//! # Ok(())
+//! # }
+//! ```
+//!
+//! ## Numeric Encoding Details
 //!
 //! Numbers are encoded in base-3 using the mapping:
 //! - ▖ = 1
@@ -12,20 +57,47 @@
 //! - ▌ = 3
 //!
 //! For example:
-//! - 1 → ▖ (1)
-//! - 2 → ▘ (2)
-//! - 3 → ▌ (3)
-//! - 4 → ▖▖ ((1×3) + 1)
-//! - 13 → ▖▖▖ ((1×9) + (1×3) + 1)
+//! ```text
+//! 1  → ▖      (1)
+//! 2  → ▘      (2)
+//! 3  → ▌      (3)
+//! 4  → ▖▖     (1×3 + 1)
+//! 13 → ▖▖▖    (1×9 + 1×3 + 1)
+//! 42 → ▖▖▖▌   (1×27 + 1×9 + 1×3 + 3)
+//! ```
+//!
+//! ## Error Handling
+//!
+//! All operations return a [`Result`] type that can contain the following errors:
+//! - [`DollcodeError::InvalidInput`]: Input validation failed
+//! - [`DollcodeError::InvalidChar`]: Invalid character for text encoding
+//! - [`DollcodeError::Overflow`]: Value overflow occurred
+//!
+//! ## Zero Allocation Guarantee
+//!
+//! This crate makes zero heap allocations by using fixed-size buffers from the [`heapless`] crate.
+//! All operations work with stack memory only.
+//!
+//! ## Performance
+//!
+//! - Encoding/decoding operations are O(1) for numbers
+//! - Text operations are O(n) where n is the input length
+//! - No heap allocations or system calls
+//! - Constant memory usage regardless of input size
+//!
+//! ## Examples
+//!
+//! More examples can be found in the documentation for individual functions.
 
-mod error;
+pub mod error;
 pub mod text;
+
 pub use error::{DollcodeError, Result};
 
 /// Maximum length of a dollcode sequence
 pub const MAX_DOLLCODE_SIZE: usize = 64;
 
-/// The three characters used in dollcode representation in value order
+/// The three characters used in dollcode representation in value order.
 /// Maps 1->▖, 2->▘, 3->▌
 pub const CHAR_MAP: [char; 3] = ['▖', '▘', '▌'];
 
@@ -44,6 +116,15 @@ impl Default for Dollcode {
 
 impl Dollcode {
     /// Creates an empty dollcode sequence
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// # use dollcode::Dollcode;
+    /// let dollcode = Dollcode::new();
+    /// assert!(dollcode.is_empty());
+    /// assert_eq!(dollcode.len(), 0);
+    /// ```
     #[inline]
     pub fn new() -> Self {
         Self {
@@ -53,26 +134,104 @@ impl Dollcode {
     }
 
     /// Returns a slice of the valid characters in this sequence
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// # use dollcode::{to_dollcode, Result};
+    /// # fn main() -> Result<()> {
+    /// let dollcode = to_dollcode(42)?;
+    /// assert_eq!(dollcode.as_chars(), &['▖', '▖', '▖', '▌']);
+    /// # Ok(())
+    /// # }
+    /// ```
     #[inline]
     pub fn as_chars(&self) -> &[char] {
         &self.chars[..self.len]
     }
 
     /// Returns the number of characters in this sequence
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// # use dollcode::{to_dollcode, Result};
+    /// # fn main() -> Result<()> {
+    /// let dollcode = to_dollcode(42)?;
+    /// assert_eq!(dollcode.len(), 4);
+    /// # Ok(())
+    /// # }
+    /// ```
     #[inline]
     pub fn len(&self) -> usize {
         self.len
     }
 
     /// Returns true if this sequence is empty
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// # use dollcode::{to_dollcode, Dollcode, Result};
+    /// # fn main() -> Result<()> {
+    /// let empty = Dollcode::new();
+    /// assert!(empty.is_empty());
+    ///
+    /// let dollcode = to_dollcode(42)?;
+    /// assert!(!dollcode.is_empty());
+    /// # Ok(())
+    /// # }
+    /// ```
     #[inline]
     pub fn is_empty(&self) -> bool {
         self.len == 0
     }
 }
 
-/// Encodes a number into dollcode using base-3
-/// Each digit represents a value 1-3, mapped to ▖,▘,▌ respectively
+/// Display implementation for Dollcode that renders the sequence as a string of box-drawing characters.
+///
+/// # Examples
+///
+/// ```rust
+/// # use dollcode::{to_dollcode, Result};
+/// # fn main() -> Result<()> {
+/// let dollcode = to_dollcode(42)?;
+/// assert_eq!(dollcode.to_string(), "▖▖▖▌");
+/// # Ok(())
+/// # }
+/// ```
+///
+/// # Notes
+///
+/// - Only includes the valid characters in the sequence
+/// - Empty sequences display as an empty string
+/// - No separators or additional formatting are added
+impl core::fmt::Display for Dollcode {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        for &c in self.as_chars() {
+            write!(f, "{}", c)?;
+        }
+        Ok(())
+    }
+}
+
+/// Encodes a number into dollcode using base-3.
+/// Each digit represents a value 1-3, mapped to ▖,▘,▌ respectively.
+///
+/// # Examples
+///
+/// ```rust
+/// # use dollcode::{to_dollcode, Result};
+/// # fn main() -> Result<()> {
+/// let dollcode = to_dollcode(42)?;
+/// assert_eq!(dollcode.as_chars(), &['▖', '▖', '▖', '▌']);
+/// # Ok(())
+/// # }
+/// ```
+///
+/// # Errors
+///
+/// Returns [`DollcodeError::Overflow`] if the number is too large to encode.
 pub fn to_dollcode(mut num: u64) -> Result<Dollcode> {
     if num == 0 {
         return Ok(Dollcode::new());
@@ -103,9 +262,27 @@ pub fn to_dollcode(mut num: u64) -> Result<Dollcode> {
     Ok(dollcode)
 }
 
-/// Decodes dollcode back to a number
+/// Decodes dollcode back to a number.
 /// Interprets the sequence as base-3 where:
 /// ▖=1, ▘=2, ▌=3
+///
+/// # Examples
+///
+/// ```rust
+/// # use dollcode::{from_dollcode, Result};
+/// # fn main() -> Result<()> {
+/// let chars = ['▖', '▖', '▖', '▌'];
+/// let num = from_dollcode(&chars)?;
+/// assert_eq!(num, 42);
+/// # Ok(())
+/// # }
+/// ```
+///
+/// # Errors
+///
+/// Returns:
+/// - [`DollcodeError::InvalidInput`] if the sequence contains invalid characters
+/// - [`DollcodeError::Overflow`] if the decoded value would overflow u64
 pub fn from_dollcode(chars: &[char]) -> Result<u64> {
     if chars.is_empty() {
         return Ok(0);
@@ -159,7 +336,7 @@ mod tests {
             //     '▖' -> 1:  1 * 3 + 1 = 4
             //     '▖' -> 1:  4 * 3 + 1 = 13
             //     '▌' -> 3: 13 * 3 + 3 = 42
-            (42, "▖▖▖▌"),
+            (42, "▖▖▖▌"), // 1×27 + 1×9 + 1×3 + 3
         ];
 
         for &(num, expected) in &cases {
@@ -230,7 +407,13 @@ mod tests {
 
     #[test]
     fn test_large_numbers() {
-        let large_cases = [1000, 10_000, 100_000, 1_000_000, 440729];
+        let large_cases = [
+            1000,
+            10_000,
+            100_000,
+            1_000_000,
+            440729,
+        ];
 
         for &num in &large_cases {
             let encoded = to_dollcode(num).unwrap();

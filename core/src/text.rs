@@ -1,36 +1,52 @@
 //! Text encoding and decoding functionality for dollcode.
 //!
 //! This module provides zero-allocation text handling by mapping ASCII characters
-//! to 5-digit dollcode sequences. Characters are mapped to positions 0-94 according
-//! to a standardized order, then each position is encoded in base-3 using dollcode
-//! characters.
+//! to 5-digit dollcode sequences. Each character position is encoded in base-3
+//! using dollcode characters, maintaining the crate's no-heap-allocation guarantee.
 //!
 //! # Character Mapping
 //!
-//! Characters are mapped to positions in the following order:
+//! Characters are mapped to positions in the following standardized order:
 //! - Uppercase letters (A-Z): positions 0-25
 //! - Lowercase letters (a-z): positions 26-51
 //! - Numbers (0-9): positions 52-61
 //! - Space: position 62
 //! - Punctuation and symbols: positions 63-94
 //!
-//! # Examples
+//! # Example
 //!
 //! ```rust
-//! use dollcode_core::text::TextIterator;
+//! use dollcode::text::{TextIterator, TextDecoder};
 //!
-//! let text = "Hi!";
+//! # fn main() -> dollcode::Result<()> {
+//! // Encode text to dollcode
+//! let text = "Hello!";
+//! let mut encoded = Vec::new();
+//!
 //! for result in TextIterator::new(text) {
-//!     let segment = result.unwrap();
+//!     let segment = result?;
 //!     // Each character becomes a 5-digit sequence
 //!     assert_eq!(segment.len(), 5);
-//!     assert_eq!(segment.as_chars().len(), 5);
-//!     // Verify only valid dollcode characters are produced
-//!     for &c in segment.as_chars() {
-//!         assert!(matches!(c, '▖' | '▘' | '▌'));
-//!     }
+//!     encoded.extend_from_slice(segment.as_chars());
 //! }
+//!
+//! // Decode back to text
+//! let mut decoded = String::new();
+//! for result in TextDecoder::new(&encoded) {
+//!     decoded.push(result?);
+//! }
+//! assert_eq!(decoded, "Hello!");
+//! # Ok(())
+//! # }
 //! ```
+//!
+//! # Performance
+//!
+//! - Each character is encoded to exactly 5 dollcode digits
+//! - All operations use fixed-size buffers
+//! - No heap allocations
+//! - Linear time complexity O(n) where n is input length
+//! - Constant memory usage regardless of input size
 
 use crate::{error::DollcodeError, error::Result, CHAR_MAP as DOLLCODE_CHARS};
 use core::str::Chars;
@@ -52,6 +68,16 @@ pub const CHAR_MAP: &[char] = &[
 pub const SEGMENT_SIZE: usize = 5;
 
 /// A fixed-length dollcode sequence representing a single character
+///
+/// # Examples
+///
+/// ```rust
+/// use dollcode::text::TextSegment;
+///
+/// let segment = TextSegment::new();
+/// assert!(segment.is_empty());
+/// assert_eq!(segment.len(), 0);
+/// ```
 #[derive(Debug, Clone, Copy)]
 pub struct TextSegment {
     /// Buffer holding the dollcode characters
@@ -62,33 +88,73 @@ pub struct TextSegment {
 
 impl Default for TextSegment {
     fn default() -> Self {
-        Self {
-            chars: ['\0'; SEGMENT_SIZE],
-            len: 0,
-        }
+        Self::new()
     }
 }
 
 impl TextSegment {
     /// Creates an empty text segment
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// # use dollcode::text::TextSegment;
+    /// let segment = TextSegment::new();
+    /// assert!(segment.is_empty());
+    /// ```
     #[inline]
     pub fn new() -> Self {
-        Self::default()
+        Self {
+            chars: ['\0'; SEGMENT_SIZE],
+            len: 0,
+        }
     }
 
     /// Returns a slice of the valid characters in this segment
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// # use dollcode::text::TextIterator;
+    /// # fn main() -> dollcode::Result<()> {
+    /// let mut iter = TextIterator::new("A");
+    /// let segment = iter.next().unwrap()?;
+    /// assert_eq!(segment.as_chars().len(), 5);
+    /// # Ok(())
+    /// # }
+    /// ```
     #[inline]
     pub fn as_chars(&self) -> &[char] {
         &self.chars[..self.len]
     }
 
     /// Returns the number of characters in this segment
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// # use dollcode::text::TextIterator;
+    /// # fn main() -> dollcode::Result<()> {
+    /// let mut iter = TextIterator::new("A");
+    /// let segment = iter.next().unwrap()?;
+    /// assert_eq!(segment.len(), 5);
+    /// # Ok(())
+    /// # }
+    /// ```
     #[inline]
     pub fn len(&self) -> usize {
         self.len
     }
 
     /// Returns true if this segment is empty
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// # use dollcode::text::TextSegment;
+    /// let segment = TextSegment::new();
+    /// assert!(segment.is_empty());
+    /// ```
     #[inline]
     pub fn is_empty(&self) -> bool {
         self.len == 0
@@ -96,6 +162,24 @@ impl TextSegment {
 }
 
 /// Zero-allocation iterator over text, producing dollcode segments
+///
+/// # Examples
+///
+/// ```rust
+/// use dollcode::text::TextIterator;
+///
+/// # fn main() -> dollcode::Result<()> {
+/// let text = "Hello!";
+/// let mut segments = Vec::new();
+///
+/// for result in TextIterator::new(text) {
+///     let segment = result?;
+///     segments.extend_from_slice(segment.as_chars());
+/// }
+/// # Ok(())
+/// # }
+/// ```
+#[derive(Debug)]
 pub struct TextIterator<'a> {
     /// Source character iterator
     chars: Chars<'a>,
@@ -108,6 +192,14 @@ pub struct TextIterator<'a> {
 }
 
 impl<'a> TextIterator<'a> {
+    /// Creates a new text iterator from input text
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// # use dollcode::text::TextIterator;
+    /// let iter = TextIterator::new("Hello!");
+    /// ```
     #[inline]
     pub fn new(text: &'a str) -> Self {
         Self {
@@ -161,6 +253,28 @@ impl<'a> Iterator for TextIterator<'a> {
 }
 
 /// Decodes dollcode segments back into text characters
+///
+/// # Examples
+///
+/// ```rust
+/// # use dollcode::text::{TextIterator, decode_text_segment};
+/// # fn main() -> dollcode::Result<()> {
+/// // First encode a character
+/// let mut iter = TextIterator::new("A");
+/// let segment = iter.next().unwrap()?;
+///
+/// // Then decode it back
+/// let decoded = decode_text_segment(segment.as_chars())?;
+/// assert_eq!(decoded, 'A');
+/// # Ok(())
+/// # }
+/// ```
+///
+/// # Errors
+///
+/// Returns:
+/// - [`DollcodeError::InvalidInput`] if segment length is wrong or contains invalid chars
+/// - [`DollcodeError::Overflow`] if value decoding would overflow
 pub fn decode_text_segment(chars: &[char]) -> Result<char> {
     // A text segment must be exactly SEGMENT_SIZE chars
     if chars.len() != SEGMENT_SIZE {
@@ -193,6 +307,32 @@ pub fn decode_text_segment(chars: &[char]) -> Result<char> {
 }
 
 /// Iterator that decodes dollcode segments back into text
+///
+/// # Examples
+///
+/// ```rust
+/// # use dollcode::text::{TextIterator, TextDecoder};
+/// # fn main() -> dollcode::Result<()> {
+/// let text = "Hi!";
+/// let mut encoded = Vec::new();
+///
+/// // First encode
+/// for result in TextIterator::new(text) {
+///     let segment = result?;
+///     encoded.extend_from_slice(segment.as_chars());
+/// }
+///
+/// // Then decode
+/// let mut decoded = String::new();
+/// for result in TextDecoder::new(&encoded) {
+///     decoded.push(result?);
+/// }
+///
+/// assert_eq!(decoded, text);
+/// # Ok(())
+/// # }
+/// ```
+#[derive(Debug)]
 pub struct TextDecoder<'a> {
     /// Source dollcode characters
     chars: core::slice::Chunks<'a, char>,
@@ -202,6 +342,14 @@ pub struct TextDecoder<'a> {
 
 impl<'a> TextDecoder<'a> {
     /// Creates a new text decoder from dollcode characters
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// # use dollcode::text::TextDecoder;
+    /// let chars = ['▖', '▘', '▌', '▖', '▖'];
+    /// let decoder = TextDecoder::new(&chars);
+    /// ```
     #[inline]
     pub fn new(chars: &'a [char]) -> Self {
         Self {
@@ -433,5 +581,36 @@ mod tests {
             decode_text_segment(&mixed_chars),
             Err(DollcodeError::InvalidInput)
         ));
+    }
+
+    #[test]
+    fn test_overflow_conditions() {
+        // Create a sequence that would cause overflow during decoding
+        let overflow_chars = ['▌', '▌', '▌', '▌', '▌']; // Maximum base-3 value
+
+        assert!(matches!(
+            decode_text_segment(&overflow_chars),
+            Err(DollcodeError::InvalidInput)
+        ));
+    }
+
+    #[test]
+    fn test_iterator_position_tracking() {
+        let text = "Hello☺World"; // Invalid char in middle
+        let iter = TextIterator::new(text);
+
+        // Process until error
+        for result in iter {
+            match result {
+                Ok(_) => continue,
+                Err(DollcodeError::InvalidChar(c, pos)) => {
+                    assert_eq!(c, '☺');
+                    assert_eq!(pos, 5); // Position should be 5 (zero-based)
+                    return;
+                }
+                Err(e) => panic!("Unexpected error: {:?}", e),
+            }
+        }
+        panic!("Expected invalid char error");
     }
 }
