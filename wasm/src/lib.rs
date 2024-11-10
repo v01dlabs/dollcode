@@ -2,7 +2,7 @@
 #![forbid(unsafe_code)]
 
 use core::fmt::Write;
-use dollcode_core::{
+use dollcode::{
     from_dollcode,
     text::{TextDecoder, TextIterator, SEGMENT_SIZE},
     to_dollcode,

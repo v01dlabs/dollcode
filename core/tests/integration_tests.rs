@@ -1,4 +1,4 @@
-use dollcode_core::{
+use dollcode::{
     from_dollcode,
     text::{TextDecoder, TextIterator, CHAR_MAP as TEXT_CHAR_MAP},
     to_dollcode, CHAR_MAP,
