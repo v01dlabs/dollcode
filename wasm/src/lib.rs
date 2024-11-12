@@ -89,13 +89,13 @@ fn to_js_err(e: impl core::fmt::Debug + Any) -> JsValue {
             DollcodeError::InvalidChar(c, _) => {
                 let _ = write!(
                     &mut msg,
-                    "Character '{}' is not supported (valid: printable ASCII)",
+                    "Character '{}' is not supported\n(valid: printable ASCII)",
                     c
                 );
             }
             DollcodeError::Overflow => {
                 let _ =
-                    msg.push_str("Input exceeds maximum length (text: 100, decimal: 20, hex: 18)");
+                    msg.push_str("Input exceeds maximum length\n(text: 100, decimal: 20, hex: 18)");
             }
             DollcodeError::InvalidInput => {
                 let _ =

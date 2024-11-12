@@ -220,14 +220,26 @@ input[type="text"]:focus {
 }
 
 #output.error {
+    color: var(--error);
+    color: var(--error-p3);
     --pulse-color: var(--error-subtle);
     --pulse-color-p3: var(--error-subtle-p3);
+    display: flex;
+    letter-spacing: 0.05em;
+    line-height: 2;
+    margin: 0;
+    overflow-wrap: break-word;
+    padding: 0.75rem;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    transition: opacity 0.15s ease-in-out;
+    white-space: pre-wrap;
+    word-break: break-word;
 }
 
 #output.error .output-content {
     align-items: center;
-    color: var(--error);
-    color: var(--error-p3);
     text-align: center;
     overflow-wrap: break-word;
     word-break: normal;
@@ -264,8 +276,8 @@ input[type="text"]:focus {
     justify-content: center;
     opacity: 0.6;
     position: absolute;
-    right: 0.5rem;
-    top: 0.5rem;
+    right: 0.2rem;
+    top: 0.2rem;
     transition: opacity 0.2s ease, transform 0.2s ease;
     width: 42px;
 }
