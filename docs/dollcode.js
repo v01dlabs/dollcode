@@ -1,4 +1,5 @@
 (async function() {
+    // Timing constants
     const TIMING = {
         CHAR_ANIMATION: 6,
         DELETE_SPEED: 8,
@@ -9,9 +10,12 @@
         HELD_THRESHOLD: 300,
         MAX_RETRIES: 5,
         RETRY_DELAY: 200,
+        COPY_FEEDBACK_DURATION: 1200,
+        SHAKE_DURATION: 400,
         LOAD_TIMEOUT: 10000
     };
 
+    // Application states
     const State = {
         IDLE: 'idle',
         TYPING: 'typing',
@@ -19,26 +23,33 @@
         ERROR: 'error'
     };
 
+    // Key state management
     const KeyState = {
         _heldKeys: new Map(),
+
         isKeyHeld(key) {
             return this._heldKeys.has(key);
         },
+
         getHoldTime(key) {
             const startTime = this._heldKeys.get(key);
             return startTime ? Date.now() - startTime : 0;
         },
+
         isHoldThreshold(key) {
             return this.getHoldTime(key) > TIMING.HELD_THRESHOLD;
         },
+
         pressKey(key) {
             if (!this._heldKeys.has(key)) {
                 this._heldKeys.set(key, Date.now());
             }
         },
+
         releaseKey(key) {
             this._heldKeys.delete(key);
         },
+
         clear() {
             this._heldKeys.clear();
         }
@@ -56,26 +67,32 @@
             this.currentAnimation = null;
             this.debounceTimeout = null;
             this.isProcessing = false;
+            this.resizeObserver = null;
 
             this.setupDOM();
             this.setupEventListeners();
 
-            this.contentDiv.textContent = '▖▘▖▖▌▖▘▘▘▘▖▘▘▖▘▖▘▘▖▘\n▖▘▖▖▘▖▘▘▘▘▖▘▖▖▌▖▘▖▘▖';
+            // Initial content
+            this.contentDiv.textContent = '▌▖▌▖‍▌▘▌▌‍▌▘▘▌‍▌▘▘▌‍▌▖▘▌‍▌▘▌▌‍▌▖▌▖‍▌▖▌▘‍';
         }
 
         setupDOM() {
+            // Create content div
             this.contentDiv = document.createElement('div');
             this.contentDiv.className = 'output-content';
 
+            // Create copy button
             this.copyButton = document.createElement('button');
             this.copyButton.className = 'copy-button';
             this.copyButton.setAttribute('aria-label', 'Copy to clipboard');
             this.copyButton.innerHTML = this.getCopyButtonSVG();
 
+            // Clear and populate output
             this.output.textContent = '';
             this.output.appendChild(this.contentDiv);
             this.output.appendChild(this.copyButton);
 
+            // Set initial height
             this.output.style.minHeight = `${Math.max(
                 this.output.getBoundingClientRect().height,
                 TIMING.MIN_HEIGHT
@@ -105,14 +122,14 @@
                 let content = this.contentDiv.textContent;
 
                 if (!this.output.classList.contains('error') && /[▖▘▌]/.test(content)) {
-                    content = content.replace(/[\n\r\t\u200B\u00A0\u2000-\u200F\u2028-\u202F\uFEFF]/g, '');
+                    content = content.replace(/[\n\r\t\u00A0\u2000-\u200C\u200E-\u200F\u2028-\u202F\uFEFF]/g, '');
                 }
 
                 await navigator.clipboard.writeText(content);
                 this.copyButton.innerHTML = this.getCopyButtonSVG(true);
                 setTimeout(() => {
                     this.copyButton.innerHTML = this.getCopyButtonSVG();
-                }, 1200);
+                }, TIMING.COPY_FEEDBACK_DURATION);
             } catch (err) {
                 console.error('Copy failed:', err);
             }
@@ -136,12 +153,12 @@
             if (this.state !== State.ERROR) {
                 this.state = State.ERROR;
                 this.output.classList.remove('error', 'shake');
-                void this.output.offsetWidth;
+                void this.output.offsetWidth; // Force reflow
                 this.output.classList.add('error', 'shake');
 
                 setTimeout(() => {
                     this.output.classList.remove('shake');
-                }, 400);
+                }, TIMING.SHAKE_DURATION);
             }
 
             this.contentDiv.textContent = error.toString();
@@ -401,8 +418,7 @@
             };
 
             input.addEventListener('input', (e) => {
-                const value = e.target.value.replace(/[\n\r\t\u200B\u00A0\u2000-\u200F\u2028-\u202F\uFEFF]/g, '');
-                e.target.value = value;
+                const value = e.target.value.replace(/[\n\r\t\u00A0\u2000-\u200C\u200E-\u200F\u2028-\u202F\uFEFF]/g, '');
 
                 if (value.length <= 1) {
                     outputManager.processInput(value, true);
