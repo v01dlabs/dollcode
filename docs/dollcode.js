@@ -425,8 +425,19 @@
 
     async function loadWasm(retryCount = 0) {
         try {
+            console.log('Attempting WASM load, retry:', retryCount);
+
+            const wasmCheck = await fetch('./pkg/dollcode_wasm_bg.wasm');
+            if (!wasmCheck.ok) {
+                throw new Error(`WASM file not found: ${wasmCheck.status}`);
+            }
+            console.log('WASM file found, attempting module import');
+
             const { default: init, convert } = await import('./pkg/dollcode_wasm.js');
+            console.log('Module imported, initializing...');
+
             await init();
+            console.log('WASM initialized');
 
             if (typeof convert !== 'function') {
                 throw new Error('WASM convert function not found');
@@ -434,11 +445,14 @@
 
             return { convert };
         } catch (error) {
+            console.error('WASM load error:', error);
             if (retryCount < TIMING.LOADING.MAX_RETRIES) {
-                await new Promise(r => setTimeout(r, TIMING.LOADING.RETRY_DELAY * (retryCount + 1)));
+                const delay = TIMING.LOADING.RETRY_DELAY * (retryCount + 1);
+                console.log(`Retrying in ${delay}ms...`);
+                await new Promise(r => setTimeout(r, delay));
                 return loadWasm(retryCount + 1);
             }
-            throw new Error(`WASM loading failed after ${TIMING.LOADING.MAX_RETRIES} attempts: ${error.message}`);
+            throw error;
         }
     }
 
