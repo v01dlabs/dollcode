@@ -41,13 +41,6 @@ jobs:
           cp wasm/pkg/dollcode_wasm_bg.wasm docs/pkg/
           cp wasm/pkg/dollcode_wasm.js docs/pkg/
 
-          # Copy static files
-          cp index.html docs/
-          cp style.css docs/
-          cp dollcode.js docs/
-          cp favicon.ico docs/
-          cp -r assets/* docs/assets/
-
           # List all copied files
           echo "Contents of docs:"
           ls -la docs
