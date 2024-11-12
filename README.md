@@ -1,42 +1,27 @@
-# ▌▖▌▖‍▌▘▌▌‍▌▘▘▌‍▌▘▘▌‍▌▖▘▌‍▌▘▌▌‍▌▖▌▖‍▌▖▌▘‍
+# dollcode ▖▘▌
 
 This is a zero-allocation implementation of dollcode; a trinary encoding system using Unicode box-drawing characters (▖, ▘, and ▌)
 
-## ▘▖▘▖‍▌▖▌▘‍▌▖▘▖‍▌▌▘▘‍▌▌▘▌‍▌▌▖▌‍▌▖▌▘‍▌▌▘▖‍
+## Features ✨
 
 * ⚡ Zero-allocation core with heapless implementation
 * 🔢 Support for decimal, hexadecimal, and text encoding (ASCII printable characters)
 * 🔄 Bidirectional conversion between text/numbers and dollcode
 * 🦀 Pure Rust implementation with no unsafe code
-* 🌐 WebAssembly support
+* 🔗 WebAssembly bindings
 * 📝 Comprehensive documentation and test coverage
 
-### ▘▌▖▌‍▌▖▌▘‍▌▖▘▘‍
+### Web 🌐
 
 Visit the web interface and start converting! The interface supports all available modes for encoding and decoding.
 
-## ▘▖▖▘‍▌▖▌▘‍▌▌▌▖‍▌▖▌▘‍▌▘▘▌‍▌▘▌▌‍▌▌▖▖‍▌▘▌▖‍▌▖▌▘‍▌▘▌▘‍▌▌▘▘‍
-
-```bash
-# Start development environment
-./watch.sh
-./serve.sh
-
-# Run tests
-cargo test --workspace
-wasm-pack test --node
-
-# Build release
-cargo build --release
-```
-
-## ▘▖▘▌‍▌▘▌▌‍▌▌▌▘‍▌▖▘‍▌▘▖▌‍▌▌▘▘‍▌▖▘‍▘▌▖▌‍▌▘▌▌‍▌▌▖▌‍▌▘▘▘‍▌▌▘▖‍
+## How it Works 🎛️
 
 Each dollcode character represents a trinary digit (base-3):
 * Characters map to values: ▖=1, ▘=2, ▌=3
 * Text encoding uses zero-width joiners as delimiters
 
-### Memory Guarantees:
+### Memory Guarantees 🤝
 
 **Zero Allocation**:
 * Number encoding/decoding uses fixed-size stack buffers
@@ -56,7 +41,7 @@ Each dollcode character represents a trinary digit (base-3):
 * Total output buffer: 1800 bytes (100 chars × 18 bytes)
 * Each character produces 5 dollcode chars + 1 delimiter
 
-### Input Limits & Validation:
+### Input Limits & Validation ✅
 
 **Text**:
 * ASCII printable characters only (codes 32-126)
@@ -83,13 +68,14 @@ Each dollcode character represents a trinary digit (base-3):
 * Position tracking for error reporting
 * Clear error messages with context
 
-## ▘▘▖▖‍▌▘▖▌‍▌▖▘▌‍▌▖▌▘‍▌▘▌▘‍▌▌▘▖‍▌▖▌▘‍
+## License 📄
 
 This project is licensed under:
+
 [![License: MPL 2.0](https://img.shields.io/badge/License-MPL%202.0-brightgreen.svg)](LICENSE)
 
-## ▖▌▌▘‍▌▖▘▌‍▌▘▘▘‍▌▘▌▘‍▌▘▌▌‍▌▌▌▘‍▌▘▘▌‍▌▖▌▘‍▌▖▌▖‍▌▘▖▖‍▌▖▌▘‍▌▘▌▖‍▌▖▌▘‍▌▘▌▘‍▌▌▘▘‍▌▌▘▖‍
+## Credits 🙏
 
-Credit to [noe](https://noe.sh/dollcode/) for the original idea & implementation
+[noe](https://noe.sh/dollcode/) for the original idea & implementation
 
 ▘▘▖▘‍▌▖▘▖‍▌▖▌▖‍▌▖▌▘‍▌▖▘‍▌▖▘▘‍▖▖▖▖▖‍▌▖▘‍▌▖▌▘‍▌▘▌▖‍
