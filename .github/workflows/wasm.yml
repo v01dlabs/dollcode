@@ -45,6 +45,7 @@ jobs:
           # Create clean docs directory
           rm -rf docs
           mkdir -p docs/pkg
+          touch docs/.nojekyll
           # Copy WASM build
           cp -r wasm/pkg/* docs/pkg/
           # Verify files exist
