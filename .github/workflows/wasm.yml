@@ -1,35 +1,63 @@
-name: WASM
+name: WASM Build and Deploy
+
 on:
   push:
     branches: [ main ]
   pull_request:
     branches: [ main ]
 
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "pages"
+  cancel-in-progress: true
+
 jobs:
-  build:
+  build-and-deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v3
 
       - name: Install wasm-pack
         run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
 
       - name: Build WASM
-        run: wasm-pack build wasm --target web
-
-      - name: Copy to docs
         run: |
-          mkdir -p docs/pkg
-          cp -r wasm/pkg/* docs/pkg/
+          wasm-pack build wasm --target web
+          # Ensure build succeeded
+          if [ ! -d "wasm/pkg" ]; then
+            echo "WASM build failed - pkg directory not found"
+            exit 1
+          fi
 
-      - name: Upload artifacts
-        uses: actions/upload-artifact@v3
+      - name: Prepare deployment
+        run: |
+          # Create clean docs directory
+          rm -rf docs
+          mkdir -p docs/pkg
+          # Copy WASM build
+          cp -r wasm/pkg/* docs/pkg/
+          # Verify files exist
+          if [ ! -f "docs/pkg/dollcode_wasm.js" ]; then
+            echo "Required WASM files missing"
+            exit 1
+          fi
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v2
         with:
-          name: wasm-pkg
-          path: wasm/pkg/
+          path: docs
 
       - name: Deploy to GitHub Pages
-        uses: peaceiris/actions-gh-pages@v3
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./docs
+        id: deployment
+        uses: actions/deploy-pages@v2
