@@ -2,7 +2,9 @@
 name = "dollcode-wasm"
 version.workspace = true
 edition.workspace = true
-license.workspace = true
+license-file.workspace = true
+authors.workspace = true
+repository.workspace = true
 description = "WebAssembly bindings for dollcode"
 
 [lib]
