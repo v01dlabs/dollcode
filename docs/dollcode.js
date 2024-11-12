@@ -1,113 +1,170 @@
 (async function() {
-    // Timing constants
     const TIMING = {
-        CHAR_ANIMATION: 6,
-        DELETE_SPEED: 8,
-        DELETE_SPEED_FAST: 4,
-        DEBOUNCE_DELAY: 60,
-        RESIZE_THROTTLE: 10,
-        MIN_HEIGHT: 80,
-        HELD_THRESHOLD: 300,
-        MAX_RETRIES: 5,
-        RETRY_DELAY: 200,
-        COPY_FEEDBACK_DURATION: 1200,
-        SHAKE_DURATION: 400,
-        LOAD_TIMEOUT: 10000
+        ANIMATION: {
+            CHAR: 6,
+            DELETE: 8,
+            DELETE_FAST: 4,
+            SHAKE: 400,
+            COPY_FEEDBACK: 1200
+        },
+        PERFORMANCE: {
+            DEBOUNCE: 60,
+            RESIZE_THROTTLE: 10,
+            RAF_TIMEOUT: 100
+        },
+        SIZING: {
+            MIN_HEIGHT: 80
+        },
+        LOADING: {
+            MAX_RETRIES: 5,
+            RETRY_DELAY: 200,
+            TIMEOUT: 10000
+        },
+        INPUT: {
+            HELD_THRESHOLD: 300
+        }
     };
 
-    // Application states
-    const State = {
+    const State = Object.freeze({
         IDLE: 'idle',
         TYPING: 'typing',
         DELETING: 'deleting',
         ERROR: 'error'
-    };
+    });
 
-    // Key state management
-    const KeyState = {
-        _heldKeys: new Map(),
+    const SELECTORS = Object.freeze({
+        INPUT: '#input',
+        OUTPUT: '#output',
+        INFO_BUTTON: '#info-button',
+        INFO_PANEL: '#info-panel',
+        CLOSE_BUTTON: '.close-button'
+    });
+
+    const CLASSES = Object.freeze({
+        CONTENT: 'output-content',
+        COPY_BUTTON: 'copy-button',
+        ERROR: 'error',
+        SHAKE: 'shake'
+    });
+
+    const keyState = new WeakMap();
+
+    class KeyStateManager {
+        constructor() {
+            keyState.set(this, new Map());
+        }
 
         isKeyHeld(key) {
-            return this._heldKeys.has(key);
-        },
+            return keyState.get(this).has(key);
+        }
 
         getHoldTime(key) {
-            const startTime = this._heldKeys.get(key);
+            const startTime = keyState.get(this).get(key);
             return startTime ? Date.now() - startTime : 0;
-        },
+        }
 
         isHoldThreshold(key) {
-            return this.getHoldTime(key) > TIMING.HELD_THRESHOLD;
-        },
+            return this.getHoldTime(key) > TIMING.INPUT.HELD_THRESHOLD;
+        }
 
         pressKey(key) {
-            if (!this._heldKeys.has(key)) {
-                this._heldKeys.set(key, Date.now());
+            if (!this.isKeyHeld(key)) {
+                keyState.get(this).set(key, Date.now());
             }
-        },
+        }
 
         releaseKey(key) {
-            this._heldKeys.delete(key);
-        },
+            keyState.get(this).delete(key);
+        }
 
         clear() {
-            this._heldKeys.clear();
+            keyState.get(this).clear();
         }
-    };
+    }
 
     class OutputManager {
+        #state;
+        #output;
+        #contentDiv;
+        #copyButton;
+        #chars;
+        #lastInput;
+        #currentAnimation;
+        #debounceTimeout;
+        #isProcessing;
+        #resizeObserver;
+        #wasm;
+        #keyState;
+
         constructor(outputElement, wasmFunctions) {
-            this.output = outputElement;
-            this.wasm = wasmFunctions;
-            this.state = State.IDLE;
-            this.contentDiv = null;
-            this.copyButton = null;
-            this.chars = [];
-            this.lastProcessedInput = '';
-            this.currentAnimation = null;
-            this.debounceTimeout = null;
-            this.isProcessing = false;
-            this.resizeObserver = null;
+            this.#state = State.IDLE;
+            this.#output = outputElement;
+            this.#wasm = wasmFunctions;
+            this.#chars = [];
+            this.#lastInput = '';
+            this.#currentAnimation = null;
+            this.#debounceTimeout = null;
+            this.#isProcessing = false;
+            this.#keyState = new KeyStateManager();
 
-            this.setupDOM();
-            this.setupEventListeners();
-
-            // Initial content
-            this.contentDiv.textContent = '▌▖▌▖‍▌▘▌▌‍▌▘▘▌‍▌▘▘▌‍▌▖▘▌‍▌▘▌▌‍▌▖▌▖‍▌▖▌▘‍';
+            this.#setupDOM();
+            this.#setupEventListeners();
         }
 
-        setupDOM() {
-            // Create content div
-            this.contentDiv = document.createElement('div');
-            this.contentDiv.className = 'output-content';
+        #setupDOM() {
+            const fragment = document.createDocumentFragment();
 
-            // Create copy button
-            this.copyButton = document.createElement('button');
-            this.copyButton.className = 'copy-button';
-            this.copyButton.setAttribute('aria-label', 'Copy to clipboard');
-            this.copyButton.innerHTML = this.getCopyButtonSVG();
+            this.#contentDiv = document.createElement('div');
+            this.#contentDiv.className = CLASSES.CONTENT;
+            this.#contentDiv.style.transform = 'translateZ(0)';
 
-            // Clear and populate output
-            this.output.textContent = '';
-            this.output.appendChild(this.contentDiv);
-            this.output.appendChild(this.copyButton);
+            this.#copyButton = document.createElement('button');
+            this.#copyButton.className = CLASSES.COPY_BUTTON;
+            this.#copyButton.setAttribute('aria-label', 'Copy to clipboard');
+            this.#copyButton.innerHTML = this.#getCopyButtonSVG();
 
-            // Set initial height
-            this.output.style.minHeight = `${Math.max(
-                this.output.getBoundingClientRect().height,
-                TIMING.MIN_HEIGHT
+            fragment.appendChild(this.#contentDiv);
+            fragment.appendChild(this.#copyButton);
+
+            this.#output.textContent = '';
+            this.#output.appendChild(fragment);
+
+            const computedStyle = window.getComputedStyle(this.#output);
+            const initialHeight = computedStyle.height;
+
+            this.#output.style.minHeight = `${Math.max(
+                parseInt(initialHeight),
+                TIMING.SIZING.MIN_HEIGHT
             )}px`;
+
+            // Set initial content
+            requestAnimationFrame(() => {
+                this.#contentDiv.textContent = '▌▘▌▌‍▌▌▘▌‍▌▌▘▘‍▌▌▖▖‍▌▌▘▌‍▌▌▘▘‍';
+            });
         }
 
-        setupEventListeners() {
-            this.resizeObserver = new ResizeObserver(
-                this.throttle(this.updateHeight.bind(this), TIMING.RESIZE_THROTTLE)
+        #setupEventListeners() {
+            this.#resizeObserver = new ResizeObserver(
+                this.#throttle(this.#updateHeight.bind(this), TIMING.PERFORMANCE.RESIZE_THROTTLE)
             );
-            this.resizeObserver.observe(this.contentDiv);
-            this.copyButton.addEventListener('click', () => this.handleCopy());
+            this.#resizeObserver.observe(this.#contentDiv);
+
+            this.#copyButton.addEventListener('click', this.#handleCopy.bind(this));
+
+            const observer = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        this.#contentDiv.style.willChange = 'transform, opacity';
+                    } else {
+                        this.#contentDiv.style.willChange = 'auto';
+                    }
+                });
+            });
+
+            observer.observe(this.#output);
         }
 
-        getCopyButtonSVG(success = false) {
+        #getCopyButtonSVG(success = false) {
             return success ?
                 `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.3">
                     <path d="M9 11.286 10.8 13 15 9m-3-2.409-.154-.164c-1.978-2.096-5.249-1.85-6.927.522-1.489 2.106-1.132 5.085.806 6.729L12 19l6.275-5.322c1.938-1.645 2.295-4.623.806-6.729-1.678-2.372-4.949-2.618-6.927-.522z" stroke-linecap="round" stroke-linejoin="round"/>
@@ -117,66 +174,70 @@
                 </svg>`;
         }
 
-        async handleCopy() {
+        async #handleCopy() {
             try {
-                let content = this.contentDiv.textContent;
+                let content = this.#contentDiv.textContent;
 
-                if (!this.output.classList.contains('error') && /[▖▘▌]/.test(content)) {
+                if (!this.#output.classList.contains(CLASSES.ERROR) && /[▖▘▌]/.test(content)) {
                     content = content.replace(/[\n\r\t\u00A0\u2000-\u200C\u200E-\u200F\u2028-\u202F\uFEFF]/g, '');
                 }
 
                 await navigator.clipboard.writeText(content);
-                this.copyButton.innerHTML = this.getCopyButtonSVG(true);
+                this.#copyButton.innerHTML = this.#getCopyButtonSVG(true);
                 setTimeout(() => {
-                    this.copyButton.innerHTML = this.getCopyButtonSVG();
-                }, TIMING.COPY_FEEDBACK_DURATION);
+                    this.#copyButton.innerHTML = this.#getCopyButtonSVG();
+                }, TIMING.ANIMATION.COPY_FEEDBACK);
             } catch (err) {
                 console.error('Copy failed:', err);
             }
         }
 
-        clearErrorState() {
-            if (this.state === State.ERROR) {
-                this.output.classList.remove('error', 'shake');
-                this.state = State.IDLE;
+        #clearErrorState() {
+            if (this.#state === State.ERROR) {
+                this.#output.classList.remove(CLASSES.ERROR, CLASSES.SHAKE);
+                this.#state = State.IDLE;
             }
         }
 
-        async showError(error) {
-            if (this.currentAnimation) {
-                this.currentAnimation.cancel();
-                this.currentAnimation = null;
+        async #showError(error) {
+            if (this.#currentAnimation) {
+                this.#currentAnimation.cancel();
+                this.#currentAnimation = null;
             }
 
-            this.chars = [];
+            this.#chars = [];
 
-            if (this.state !== State.ERROR) {
-                this.state = State.ERROR;
-                this.output.classList.remove('error', 'shake');
-                void this.output.offsetWidth; // Force reflow
-                this.output.classList.add('error', 'shake');
+            if (this.#state !== State.ERROR) {
+                this.#state = State.ERROR;
+                this.#output.classList.remove(CLASSES.ERROR, CLASSES.SHAKE);
+                void this.#output.offsetWidth; // Force reflow
+                this.#output.classList.add(CLASSES.ERROR, CLASSES.SHAKE);
 
                 setTimeout(() => {
-                    this.output.classList.remove('shake');
-                }, TIMING.SHAKE_DURATION);
+                    this.#output.classList.remove(CLASSES.SHAKE);
+                }, TIMING.ANIMATION.SHAKE);
             }
 
-            this.contentDiv.textContent = error.toString();
-            await this.updateHeight();
+            requestAnimationFrame(() => {
+                this.#contentDiv.textContent = error.toString();
+                this.#updateHeight();
+            });
         }
 
-        async setContent(content, immediate = false) {
-            if (this.currentAnimation) {
-                this.currentAnimation.cancel();
-                this.currentAnimation = null;
+        async #setContent(content, immediate = false) {
+            if (this.#currentAnimation) {
+                this.#currentAnimation.cancel();
+                this.#currentAnimation = null;
             }
 
-            this.clearErrorState();
+            this.#clearErrorState();
 
             if (immediate) {
-                this.chars = Array.from(content);
-                this.contentDiv.textContent = content;
-                await this.updateHeight();
+                this.#chars = Array.from(content);
+                requestAnimationFrame(() => {
+                    this.#contentDiv.textContent = content;
+                    this.#updateHeight();
+                });
                 return;
             }
 
@@ -187,10 +248,10 @@
                     this.cancelled = true;
                 }
             };
-            this.currentAnimation = animation;
+            this.#currentAnimation = animation;
 
             try {
-                const oldChars = [...this.chars];
+                const oldChars = [...this.#chars];
                 const newChars = Array.from(content);
                 const commonLength = Math.min(oldChars.length, newChars.length);
                 let i = 0;
@@ -198,44 +259,52 @@
                 while (i < commonLength && oldChars[i] === newChars[i]) i++;
 
                 if (oldChars.length > i) {
-                    this.state = State.DELETING;
-                    while (this.chars.length > i && !animation.cancelled) {
-                        this.chars.pop();
-                        this.contentDiv.textContent = this.chars.join('');
-                        const speed = KeyState.isHoldThreshold('Backspace') ?
-                            TIMING.DELETE_SPEED_FAST : TIMING.DELETE_SPEED;
+                    this.#state = State.DELETING;
+                    while (this.#chars.length > i && !animation.cancelled) {
+                        this.#chars.pop();
+                        requestAnimationFrame(() => {
+                            this.#contentDiv.textContent = this.#chars.join('');
+                        });
+                        const speed = this.#keyState.isHoldThreshold('Backspace') ?
+                            TIMING.ANIMATION.DELETE_FAST : TIMING.ANIMATION.DELETE;
                         await new Promise(r => setTimeout(r, speed));
                     }
                 }
 
                 if (!animation.cancelled) {
-                    this.state = State.TYPING;
+                    this.#state = State.TYPING;
                     while (i < newChars.length && !animation.cancelled) {
-                        this.chars.push(newChars[i++]);
-                        this.contentDiv.textContent = this.chars.join('');
-                        await new Promise(r => setTimeout(r, TIMING.CHAR_ANIMATION));
+                        this.#chars.push(newChars[i++]);
+                        requestAnimationFrame(() => {
+                            this.#contentDiv.textContent = this.#chars.join('');
+                        });
+                        await new Promise(r => setTimeout(r, TIMING.ANIMATION.CHAR));
                     }
                 }
 
             } finally {
-                if (this.currentAnimation === animation) {
-                    this.currentAnimation = null;
+                if (this.#currentAnimation === animation) {
+                    this.#currentAnimation = null;
                     if (!animation.cancelled) {
-                        this.state = State.IDLE;
-                        this.chars = Array.from(content);
-                        this.contentDiv.textContent = content;
-                        await this.updateHeight();
+                        this.#state = State.IDLE;
+                        this.#chars = Array.from(content);
+                        requestAnimationFrame(() => {
+                            this.#contentDiv.textContent = content;
+                            this.#updateHeight();
+                        });
                     }
                 }
             }
         }
 
-        async updateHeight() {
-            const newHeight = this.contentDiv.scrollHeight;
-            this.output.style.height = `${newHeight}px`;
+        #updateHeight() {
+            const newHeight = this.#contentDiv.scrollHeight;
+            requestAnimationFrame(() => {
+                this.#output.style.height = `${newHeight}px`;
+            });
         }
 
-        throttle(func, limit) {
+        #throttle(func, limit) {
             let inThrottle;
             return function(...args) {
                 if (!inThrottle) {
@@ -246,99 +315,80 @@
             };
         }
 
-        calculateContentHeight(text) {
-            const tempContent = document.createElement('div');
-            tempContent.className = 'output-content';
-            tempContent.style.visibility = 'hidden';
-            tempContent.style.position = 'absolute';
-            tempContent.style.width = this.contentDiv.offsetWidth + 'px';
-            tempContent.textContent = text;
-            this.output.appendChild(tempContent);
-            const height = tempContent.scrollHeight;
-            this.output.removeChild(tempContent);
-            return height;
-        }
-
         async processInput(value, immediate = false) {
-            if (this.debounceTimeout) {
-                clearTimeout(this.debounceTimeout);
-                this.debounceTimeout = null;
+            if (this.#debounceTimeout) {
+                clearTimeout(this.#debounceTimeout);
+                this.#debounceTimeout = null;
             }
 
             if (!value.trim()) {
-                if (this.currentAnimation) {
-                    this.currentAnimation.cancel();
-                    this.currentAnimation = null;
+                if (this.#currentAnimation) {
+                    this.#currentAnimation.cancel();
+                    this.#currentAnimation = null;
                 }
-                this.chars = [];
-                this.clearErrorState();
-                this.contentDiv.textContent = '';
-                this.lastProcessedInput = '';
-                await this.updateHeight();
+                this.#chars = [];
+                this.#clearErrorState();
+                requestAnimationFrame(() => {
+                    this.#contentDiv.textContent = '';
+                    this.#updateHeight();
+                });
+                this.#lastInput = '';
                 return;
             }
 
-            if (value === this.lastProcessedInput) {
-                return;
-            }
-
-            if (value.length > 50) {
-                try {
-                    const result = await this.wasm.convert(value);
-                    const expectedHeight = this.calculateContentHeight(result);
-                    this.output.style.height = `${expectedHeight}px`;
-                } catch (err) {}
-            }
+            if (value === this.#lastInput) return;
 
             const process = async () => {
-                if (this.isProcessing) return;
+                if (this.#isProcessing) return;
 
                 try {
-                    this.isProcessing = true;
-                    const result = await this.wasm.convert(value);
+                    this.#isProcessing = true;
+                    const result = await this.#wasm.convert(value);
 
-                    if (value === this.lastProcessedInput) {
-                        await this.setContent(result, immediate || value.length > 50);
+                    if (value === this.#lastInput) {
+                        await this.#setContent(result, immediate || value.length > 50);
                     }
                 } catch (err) {
-                    if (value === this.lastProcessedInput) {
+                    if (value === this.#lastInput) {
                         console.error('Conversion error:', err);
-                        await this.showError(err);
+                        await this.#showError(err);
                     }
                 } finally {
-                    this.isProcessing = false;
+                    this.#isProcessing = false;
                 }
             };
 
-            this.lastProcessedInput = value;
+            this.#lastInput = value;
 
             if (immediate) {
                 await process();
             } else {
-                this.debounceTimeout = setTimeout(process, TIMING.DEBOUNCE_DELAY);
+                this.#debounceTimeout = setTimeout(process, TIMING.PERFORMANCE.DEBOUNCE);
             }
         }
 
         cleanup() {
-            if (this.currentAnimation) {
-                this.currentAnimation.cancel();
-                this.currentAnimation = null;
+            if (this.#currentAnimation) {
+                this.#currentAnimation.cancel();
+                this.#currentAnimation = null;
             }
-            if (this.debounceTimeout) {
-                clearTimeout(this.debounceTimeout);
-                this.debounceTimeout = null;
+            if (this.#debounceTimeout) {
+                clearTimeout(this.#debounceTimeout);
+                this.#debounceTimeout = null;
             }
-            this.resizeObserver?.disconnect();
-            KeyState.clear();
-            this.clearErrorState();
-            this.isProcessing = false;
+            this.#resizeObserver?.disconnect();
+            this.#keyState.clear();
+            this.#clearErrorState();
+            this.#isProcessing = false;
         }
     }
 
     function setupInfoPanel() {
-        const infoButton = document.querySelector('#info-button');
-        const infoPanel = document.querySelector('#info-panel');
-        const closeButton = document.querySelector('.close-button');
+        const infoButton = document.querySelector(SELECTORS.INFO_BUTTON);
+        const infoPanel = document.querySelector(SELECTORS.INFO_PANEL);
+        const closeButton = document.querySelector(SELECTORS.CLOSE_BUTTON);
+
+        if (!infoButton || !infoPanel || !closeButton) return;
 
         const showPanel = () => {
             infoPanel.hidden = false;
@@ -354,15 +404,23 @@
             document.body.style.overflow = '';
         };
 
-        document.addEventListener('keydown', (e) => {
-            if (e.key === 'Escape' && !infoPanel.hidden) hidePanel();
-        });
+        const handleKeydown = (e) => {
+            if (e.key === 'Escape' && !infoPanel.hidden) {
+                hidePanel();
+            }
+        };
 
+        document.addEventListener('keydown', handleKeydown);
         infoButton.addEventListener('click', showPanel);
         closeButton.addEventListener('click', hidePanel);
+
         infoPanel.addEventListener('click', (e) => {
             if (e.target === infoPanel) hidePanel();
         });
+
+        return () => {
+            document.removeEventListener('keydown', handleKeydown);
+        };
     }
 
     async function loadWasm(retryCount = 0) {
@@ -376,33 +434,37 @@
 
             return { convert };
         } catch (error) {
-            if (retryCount < TIMING.MAX_RETRIES) {
-                await new Promise(r => setTimeout(r, TIMING.RETRY_DELAY * (retryCount + 1)));
+            if (retryCount < TIMING.LOADING.MAX_RETRIES) {
+                await new Promise(r => setTimeout(r, TIMING.LOADING.RETRY_DELAY * (retryCount + 1)));
                 return loadWasm(retryCount + 1);
             }
-            throw new Error(`WASM loading failed after ${TIMING.MAX_RETRIES} attempts: ${error.message}`);
+            throw new Error(`WASM loading failed after ${TIMING.LOADING.MAX_RETRIES} attempts: ${error.message}`);
         }
     }
 
     async function setupApp() {
         try {
-            const input = document.querySelector("#input");
-            if (input) {
-                input.value = ''; // Clear input on page load/reload
+            const input = document.querySelector(SELECTORS.INPUT);
+            const output = document.querySelector(SELECTORS.OUTPUT);
+
+            if (!input || !output) {
+                throw new Error('Required elements not found');
             }
 
-            const wasmModule = await loadWasm();
+            input.value = '';
+
+            const wasmModule = await Promise.race([
+                loadWasm(),
+                new Promise((_, reject) =>
+                    setTimeout(() => reject(new Error('WASM load timeout')),
+                    TIMING.LOADING.TIMEOUT)
+                )
+            ]);
 
             document.documentElement.classList.remove('js-loading');
 
-            const output = document.querySelector('#output');
-            if (!output) throw new Error('Output element not found');
-
             const outputManager = new OutputManager(output, wasmModule);
-
-            setupInfoPanel();
-
-            if (!input) throw new Error('Input element not found');
+            const cleanupInfoPanel = setupInfoPanel();
 
             let inputBuffer = '';
             let isBuffering = false;
@@ -417,7 +479,7 @@
                 rafId = null;
             };
 
-            input.addEventListener('input', (e) => {
+            const handleInput = (e) => {
                 const value = e.target.value.replace(/[\n\r\t\u00A0\u2000-\u200C\u200E-\u200F\u2028-\u202F\uFEFF]/g, '');
 
                 if (value.length <= 1) {
@@ -430,10 +492,14 @@
                     rafId = requestAnimationFrame(flushBuffer);
                 }
                 inputBuffer = value;
-            });
+            };
+
+            input.addEventListener('input', handleInput, { passive: true });
 
             return () => {
                 outputManager.cleanup();
+                cleanupInfoPanel();
+                input.removeEventListener('input', handleInput);
                 if (rafId) cancelAnimationFrame(rafId);
             };
 
@@ -441,27 +507,30 @@
             console.error("Critical initialization error:", err);
             document.documentElement.classList.remove('js-loading');
 
-            const output = document.querySelector('#output');
+            const output = document.querySelector(SELECTORS.OUTPUT);
             if (output) {
                 const errorMessage = err.message || 'Unknown error occurred';
                 output.textContent = `Critical Error: ${errorMessage}`;
-                output.classList.add('error');
+                output.classList.add(CLASSES.ERROR);
+                output.setAttribute('aria-live', 'assertive');
             }
             throw err;
         }
     }
 
     try {
-        await setupApp();
+        const cleanup = await setupApp();
+        window.addEventListener('unload', cleanup);
     } catch (err) {
         console.error("Fatal application error:", err);
         document.documentElement.classList.remove('js-loading');
 
-        const output = document.querySelector('#output');
+        const output = document.querySelector(SELECTORS.OUTPUT);
         if (output) {
             const errorMessage = err.message || 'Unknown error occurred';
             output.textContent = `Fatal Error: ${errorMessage}`;
-            output.classList.add('error');
+            output.classList.add(CLASSES.ERROR);
+            output.setAttribute('aria-live', 'assertive');
         }
     }
 })();
