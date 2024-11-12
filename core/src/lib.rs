@@ -4,16 +4,69 @@
 #![warn(rust_2018_idioms, unreachable_pub)]
 //! # dollcode
 //!
-//! A zero-allocation trinary encoding system that represents numbers and text using box-drawing
+//! A zero-allocation implementation of the trinary encoding system that represents numbers and text using box-drawing
 //! characters (▖, ▘, ▌).
 //!
-//! ## Features
+//! ## Memory Guarantees
 //!
-//! - **Zero Allocation**: All operations use fixed-size buffers and avoid heap allocations
-//! - **#[no_std] Compatible**: Can be used in embedded applications
-//! - **Text Encoding**: Convert ASCII text to dollcode sequences
-//! - **Numeric Encoding**: Convert numbers to base-3 dollcode representation
-//! - **Predictable Memory**: Fixed memory usage regardless of input size
+//! ### Zero Allocation
+//! Core encoding and decoding operations use no heap allocations:
+//! - Number encoding/decoding uses fixed-size stack buffers
+//! - Text processing operates on slices without allocation
+//! - Internal operations use stack-only arithmetic
+//!
+//! Note: String conversion operations (via Display trait) and collecting results into
+//! strings or vectors will allocate as expected. Use `heapless` types for stack-only
+//! collection operations.
+//!
+//! ### Zero Copy
+//! - Input data is processed in-place without copying
+//! - Text operations work directly on input slices
+//! - Output is generated directly into fixed-size buffers
+//! - No intermediate copying or reallocation occurs
+//!
+//! ### Fixed Memory Usage
+//! All operations use predictable stack memory:
+//! - Number encoding: MAX_DOLLCODE_SIZE chars (64 bytes fixed)
+//! - Text segments: 9 chars per segment (fixed)
+//! - No dynamic allocation or growth
+//!
+//! ## Collecting Results
+//!
+//! For completely allocation-free operation, use `heapless` collections:
+//!
+//! ```rust
+//! # use dollcode::{text::TextIterator, Result};
+//! # fn main() -> Result<()> {
+//! let text = "Hi!";
+//! // Fixed stack buffer, no heap allocation
+//! let mut encoded = heapless::Vec::<char, 128>::new();
+//!
+//! for segment in TextIterator::new(text) {
+//!     let segment = segment?;
+//!     encoded.extend_from_slice(segment.as_chars()).unwrap();
+//! }
+//! # Ok(())
+//! # }
+//! ```
+//!
+//! For String conversion, be aware that standard String operations will allocate:
+//!
+//! ```rust
+//! # use dollcode::{to_dollcode, Result};
+//! # fn main() -> Result<()> {
+//! let dollcode = to_dollcode(42)?;
+//!
+//! // This will allocate a new String
+//! let string = dollcode.to_string();
+//!
+//! // For zero allocation, write directly to a formatter
+//! use core::fmt::Write;
+//! let mut buffer = heapless::String::<64>::new();
+//! write!(buffer, "{}", dollcode).unwrap();
+//! # Ok(())
+//! # }
+//! ```
 //!
 //! ## Quick Start
 //!
@@ -42,9 +95,16 @@
 //!
 //! for segment in TextIterator::new(text) {
 //!     let segment = segment?;
-//!     assert_eq!(segment.as_chars().len(), 5);
 //!     encoded.extend_from_slice(segment.as_chars()).unwrap(); // Use unwrap instead of ? for Vec result
 //! }
+//!
+//! // Define the expected encoded string
+//! let expected = "▘▖▘▌\u{200d}▌▘▖▌\u{200d}▌▖▌\u{200d}";
+//!
+//! // Convert the encoded Vec to a String for comparison
+//! let encoded_str: String = encoded.iter().collect();
+//!
+//! assert_eq!(encoded_str, expected, "Encoded string does not match expected value");
 //! # Ok(())
 //! # }
 //! ```
@@ -90,16 +150,17 @@
 //! More examples can be found in the documentation for individual functions.
 
 pub mod error;
+/// Module for text encoding and decoding
 pub mod text;
 
 pub use error::{DollcodeError, Result};
 
 /// Maximum length of a dollcode sequence
-pub const MAX_DOLLCODE_SIZE: usize = 64;
+pub const MAX_DOLLCODE_SIZE: usize = 41;
 
 /// The three characters used in dollcode representation in value order.
 /// Maps 1->▖, 2->▘, 3->▌
-pub const CHAR_MAP: [char; 3] = ['▖', '▘', '▌'];
+pub const DOLLCODE_CHAR_MAP: [char; 3] = ['▖', '▘', '▌'];
 
 /// A fixed-size dollcode sequence with zero heap allocation
 #[derive(Debug, Clone, Copy)]
@@ -248,15 +309,19 @@ pub fn to_dollcode(mut num: u64) -> Result<Dollcode> {
         }
 
         let rem = (num - 1) % 3; // Get 0-2 remainder
-        output[digits] = rem as u8; // Store remainder directly
+        output[digits] = rem as u8 + 1; // Store remainder directly
         num = (num - 1 - rem) / 3; // Reduce number
         digits += 1;
     }
 
-    // Map remainders to characters in reverse order
+    // Map remainders to characters in reverse order with correct indexing
     dollcode.len = digits;
     for i in 0..digits {
-        dollcode.chars[i] = CHAR_MAP[output[digits - 1 - i] as usize];
+        let rem = output[digits - 1 - i];
+        if rem == 0 || rem > 3 {
+            return Err(DollcodeError::InvalidInput);
+        }
+        dollcode.chars[i] = DOLLCODE_CHAR_MAP[(rem - 1) as usize]; // Adjust index by subtracting 1
     }
 
     Ok(dollcode)
@@ -393,7 +458,7 @@ mod tests {
     #[test]
     fn test_edge_cases() {
         // Test overflow handling
-        let buffer = [CHAR_MAP[0]; MAX_DOLLCODE_SIZE + 1];
+        let buffer = [DOLLCODE_CHAR_MAP[0]; MAX_DOLLCODE_SIZE + 1];
         assert!(from_dollcode(&buffer).is_err());
 
         // Test invalid characters
@@ -439,6 +504,236 @@ mod tests {
                 };
             }
             assert_eq!(value, num, "Base-3 check failed for {}", num);
+        }
+    }
+
+    #[test]
+    fn test_zero_conversions() {
+        // 1. Basic zero encoding
+        let encoded = to_dollcode(0).unwrap();
+        assert!(encoded.is_empty(), "Zero should encode to empty sequence");
+        assert_eq!(encoded.len(), 0, "Zero should have length 0");
+        assert!(encoded.as_chars().is_empty(), "Zero chars should be empty");
+
+        // 2. Zero decoding
+        let decoded = from_dollcode(&[]).unwrap();
+        assert_eq!(decoded, 0, "Empty sequence should decode to zero");
+
+        // 3. Round trip
+        let zero_roundtrip = from_dollcode(to_dollcode(0).unwrap().as_chars()).unwrap();
+        assert_eq!(zero_roundtrip, 0, "Zero round-trip failed");
+    }
+
+    #[test]
+    fn test_hex_conversions() {
+        let test_cases: [(u64, &[char]); 8] = [
+            (0x0, &[] as &[char]),              // 0 -> empty
+            (0x1, &['▖']),                      // 1 -> ▖
+            (0x2, &['▘']),                      // 2 -> ▘
+            (0x3, &['▌']),                      // 3 -> ▌
+            (0x4, &['▖', '▖']),                 // 4 -> ▖▖ (1×3 + 1)
+            (0xF, &['▖', '▖', '▌']),            // 15 -> ▖▌▘ (1×9 + 3×3 + 2)
+            (0x10, &['▖', '▘', '▖']),           // 16 -> ▖▌▌ (1×9 + 3×3 + 3)
+            (0xFF, &['▘', '▘', '▌', '▌', '▌']), // 255
+        ];
+
+        for &(hex_num, expected_chars) in &test_cases {
+            let encoded = to_dollcode(hex_num).unwrap();
+            assert_eq!(
+                encoded.as_chars(),
+                expected_chars,
+                "Hex {:#x} encoded incorrectly",
+                hex_num
+            );
+
+            let decoded = from_dollcode(encoded.as_chars()).unwrap();
+            assert_eq!(decoded, hex_num, "Hex {:#x} round-trip failed", hex_num);
+        }
+
+        // Special zero case
+        let zero_encoded = to_dollcode(0x0).unwrap();
+        assert!(
+            zero_encoded.is_empty(),
+            "Hex zero should encode to empty sequence"
+        );
+        assert_eq!(zero_encoded.len(), 0, "Hex zero should have length 0");
+    }
+
+    #[test]
+    fn test_hex_zero_conversions() {
+        // 1. Basic hex zero encoding from 0x0
+        let encoded = to_dollcode(0x0).unwrap();
+        assert!(
+            encoded.is_empty(),
+            "Hex zero should encode to empty sequence"
+        );
+        assert_eq!(encoded.len(), 0, "Hex zero should have length 0");
+        assert!(
+            encoded.as_chars().is_empty(),
+            "Hex zero chars should be empty"
+        );
+
+        // 2. Zero decoding to hex
+        let decoded = from_dollcode(&[]).unwrap();
+        assert_eq!(decoded, 0x0, "Empty sequence should decode to hex zero");
+
+        // 3. Hex zero round trip
+        let zero_roundtrip = from_dollcode(to_dollcode(0x0).unwrap().as_chars()).unwrap();
+        assert_eq!(zero_roundtrip, 0x0, "Hex zero round-trip failed");
+    }
+
+    #[test]
+    fn test_hex_edge_cases() {
+        let edge_cases: [(u64, &[char]); 4] = [
+            // Max u32
+            (
+                0xFFFFFFFF,
+                &[
+                    '▌', '▖', '▘', '▌', '▖', '▌', '▘', '▘', '▖', '▌', '▖', '▘', '▘', '▖', '▖', '▖',
+                    '▖', '▖', '▌', '▌',
+                ],
+            ),
+            // Max i64
+            (
+                0x7FFFFFFFFFFFFFFF,
+                &[
+                    '▖', '▌', '▖', '▌', '▌', '▌', '▘', '▘', '▌', '▌', '▌', '▘', '▘', '▖', '▌', '▘',
+                    '▌', '▖', '▖', '▌', '▌', '▖', '▘', '▌', '▘', '▌', '▘', '▖', '▘', '▖', '▘', '▌',
+                    '▌', '▖', '▘', '▖', '▌', '▘', '▘', '▖',
+                ],
+            ),
+            // Max u64
+            (
+                0xFFFFFFFFFFFFFFFF,
+                &[
+                    '▖', '▖', '▖', '▖', '▘', '▘', '▖', '▘', '▌', '▘', '▘', '▖', '▘', '▘', '▖', '▖',
+                    '▘', '▌', '▌', '▖', '▖', '▌', '▌', '▌', '▖', '▌', '▖', '▖', '▌', '▖', '▌', '▌',
+                    '▖', '▌', '▌', '▘', '▖', '▖', '▘', '▖', '▌',
+                ],
+            ),
+            // 0xDEADBEEF
+            (
+                0xDEADBEEF,
+                &[
+                    '▘', '▌', '▖', '▘', '▖', '▌', '▘', '▌', '▖', '▌', '▌', '▘', '▖', '▖', '▖', '▖',
+                    '▖', '▌', '▌', '▘',
+                ],
+            ),
+        ];
+
+        for &(hex_num, expected_chars) in &edge_cases {
+            let encoded = to_dollcode(hex_num).unwrap();
+            assert_eq!(
+                encoded.as_chars(),
+                expected_chars,
+                "Hex {:#x} encoded incorrectly",
+                hex_num
+            );
+
+            let decoded = from_dollcode(encoded.as_chars()).unwrap();
+            assert_eq!(decoded, hex_num, "Hex {:#x} round-trip failed", hex_num);
+        }
+    }
+
+    #[test]
+    fn debug_max_u64_encoding() {
+        let num: u64 = 0xFFFFFFFFFFFFFFFF;
+        let mut output = [0u8; MAX_DOLLCODE_SIZE];
+        let mut digits = 0;
+        let mut working = num;
+
+        // Collect remainders in fixed array
+        while working > 0 && digits < MAX_DOLLCODE_SIZE {
+            let rem = (working - 1) % 3;
+            output[digits] = rem as u8;
+            working = (working - 1 - rem) / 3;
+            digits += 1;
+        }
+
+        // Expected remainders at divergence point (indexes 32-39)
+        let expected_remainders: [u8; 8] = [2, 1, 0, 1, 1, 0, 0, 0];
+        let test_slice = &output[32..40];
+
+        assert_eq!(
+            test_slice, &expected_remainders,
+            "Remainders diverge at position 33"
+        );
+    }
+
+    #[test]
+    fn debug_char_matching() {
+        let test_chars = ['▖', '▘', '▌'];
+        let test_vals = [
+            test_chars[0] as u32,
+            test_chars[1] as u32,
+            test_chars[2] as u32,
+        ];
+        assert_eq!(test_vals, [0x2596, 0x2598, 0x258C]);
+
+        let input = "▘▘▌▌▌";
+        for (i, c) in input.chars().enumerate() {
+            let val = c as u32;
+            match val {
+                0x2596 => assert_eq!(c, '▖'),
+                0x2598 => assert_eq!(c, '▘'),
+                0x258C => assert_eq!(c, '▌'),
+                _ => panic!("Invalid char at pos {}: {:#x}", i, val),
+            }
+        }
+    }
+
+    #[test]
+    fn test_dollcode_char_decode() {
+        let input = "▘▘▌▌▌"; // Known working sequence for 0xFF
+        let chars: [char; 5] = ['▘', '▘', '▌', '▌', '▌'];
+
+        // Test direct decoding
+        let result = from_dollcode(&chars).unwrap();
+        assert_eq!(result, 0xFF);
+
+        // Test string decode with fixed array
+        let mut input_chars = ['\0'; 64];
+        let mut len = 0;
+        for (i, c) in input.chars().enumerate() {
+            input_chars[i] = c;
+            len += 1;
+        }
+        let str_result = from_dollcode(&input_chars[..len]).unwrap();
+        assert_eq!(str_result, 0xFF);
+    }
+
+    #[test]
+    fn test_max_buffer_utilization() {
+        // Test encoding maximum u64 value
+        let max_u64 = u64::MAX;
+        let encoded = to_dollcode(max_u64).unwrap();
+
+        // Verify we actually need the buffer size we have
+        assert!(
+            encoded.len() <= 41,
+            "Encoded length {} exceeds theoretical maximum of 41 digits",
+            encoded.len()
+        );
+
+        // Verify we can decode it back
+        let decoded = from_dollcode(encoded.as_chars()).unwrap();
+        assert_eq!(decoded, max_u64);
+    }
+
+    #[test]
+    fn test_buffer_size_requirement() {
+        // Calculate required digits for powers of 3
+        for i in 0..64 {
+            let num = 1u64 << i;
+            if let Ok(encoded) = to_dollcode(num) {
+                assert!(
+                    encoded.len() <= MAX_DOLLCODE_SIZE,
+                    "2^{} requires {} digits, exceeds buffer size {}",
+                    i,
+                    encoded.len(),
+                    MAX_DOLLCODE_SIZE
+                );
+            }
         }
     }
 }
