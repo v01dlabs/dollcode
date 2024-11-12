@@ -10,7 +10,7 @@ resolver = "2"
 version = "0.1.0"
 edition = "2021"
 license = "MPL-2.0"
-authors = ["@empxor"]
+authors = ["@mekaem"]
 repository = "https://github.com/v01dlabs/dollcode"
 
 [profile.release]
