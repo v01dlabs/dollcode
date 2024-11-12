@@ -13,7 +13,7 @@ This is a zero-allocation implementation of dollcode; a trinary encoding system 
 
 ### Web 🌐
 
-Visit the web interface and start converting! The interface supports all available modes for encoding and decoding.
+Visit the [web interface](https://dollcode.v01dlabs.sh) to start converting! The interface supports all available modes for encoding and decoding.
 
 ## How it Works 🎛️
 
