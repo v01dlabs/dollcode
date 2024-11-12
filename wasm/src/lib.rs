@@ -89,7 +89,7 @@ fn to_js_err(e: impl core::fmt::Debug + Any) -> JsValue {
             DollcodeError::InvalidChar(c, _) => {
                 let _ = write!(
                     &mut msg,
-                    "Character '{}' is not supported (valid: ASCII 32-126)",
+                    "Character '{}' is not supported (valid: printable ASCII)",
                     c
                 );
             }

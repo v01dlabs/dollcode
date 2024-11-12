@@ -5,11 +5,16 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="color-scheme" content="dark">
     <meta name="theme-color" content="#0F1214">
+    <meta property="og:title" content="dollcode">
+    <meta property="og:description" content="A trinary encoding system using Unicode box-drawing characters">
+    <meta property="og:image" content="./assets/thumbnail.jpg">
+    <meta property="og:url" content="https://dollcode.v01dlabs.sh">
     <link rel="preload" href="font.css" as="style">
     <link rel="preload" href="style.css" as="style">
+    <link rel="modulepreload" href="./pkg/dollcode_wasm.js">
     <link rel="stylesheet" href="font.css">
     <link rel="stylesheet" href="style.css">
-    <link rel="icon" href="./icon.png" type="image/png">
+    <link rel="icon" href="./assets/icon.png" type="image/png">
     <meta http-equiv="Content-Security-Policy" content="
         default-src 'self';
         script-src 'self' 'wasm-unsafe-eval' blob: 'unsafe-inline';
@@ -36,7 +41,7 @@
 <body class="js-loading">
     <script>0</script>
     <header class="header" role="banner">
-        <h1><img src="./icon.png" alt="" style="height: 2.0rem; width: 2.0rem; vertical-align: middle; margin-right: 0.5rem;" aria-hidden="true">dollcode</h1>
+        <h1><img src="./assets/icon.png" alt="" style="height: 2.0rem; width: 2.0rem; vertical-align: middle; margin-right: 0.5rem;" aria-hidden="true">dollcode</h1>
     </header>
 
     <main id="main" class="main" role="main">
@@ -62,8 +67,7 @@
             </div>
 
             <div class="output-container">
-                <div class="output-label" id="output-label">Output</div>
-                <div id="output" role="region" aria-labelledby="output-label" aria-live="polite">▖▘▖▌▖▖▘▖▘▖▖▘▌▘▌
+                <div id="output" role="region" aria-labelledby="output-label" aria-live="polite">
             </div>
             </div>
         </div>
@@ -86,9 +90,9 @@
                     <div class="limits-section">
                         <h3>Input Types</h3>
                         <ul class="features-list">
-                            <li><strong>Decimal:</strong> Positive integers up to <code>2^64 - 1</code> (<code>u64::MAX</code>)</li>
+                            <li><strong>Decimal:</strong> Positive integers up to <code>2^64 - 1</code></li>
                             <li><strong>Hexadecimal:</strong> Must start with <code>0x</code> (e.g., <code>0xFF</code>)</li>
-                            <li><strong>Text:</strong> ASCII printable characters</li>
+                            <li><strong>Text:</strong> ASCII printable characters (codes: <code>32-126</code>)</li>
                             <li><strong>dollcode:</strong> <code>▖</code>, <code>▘</code>, and <code>▌</code> characters</li>
                         </ul>
                     </div>
@@ -96,9 +100,11 @@
                     <div class="limits-section">
                         <h3>Buffer Limits</h3>
                         <ul class="features-list">
-                            <li>Maximum input length: <code>60</code> bytes // ASCII characters</li>
-                            <li>Text encoding: Each input character is encoded into <code>5</code> dollcode characters (<code>3</code> byte Unicode characters), resulting in an output of <code>15</code> bytes</li>
-                            <li>The output buffer is set to not be exceeded by inputs</li>
+                            <li>Maximum decimal length: <code>20</code> (<code>u64::MAX</code>)</li>
+                            <li>Maximum hexadecimal length: <code>18</code> (<code>0x + u64::MAX</code>)</li>
+                            <li>Maximum text length: <code>100</code> ASCII-printable characters</li>
+                            <li>Text encoding: variable length from <code>3-5</code> dollcode characters plus a zero-width joiner, resulting in an maximum output of <code>18</code> bytes per character</li>
+                            <li>The output buffer is set so a max-length text-to-dollcode output can still be decoded</li>
                         </ul>
                     </div>
                 </div>
@@ -113,34 +119,36 @@
                 dollcode is a trinary number encoding system.
             </p>
             <p>
-                It is denoted by three bit states, which are:
+                It uses three Unicode symbols to represent base-3 digits:
             </p>
             <div class="footer-examples">
                 <code>
-                    <span class="dollcode">▖</span> = 1
-                        <span class="divider">|</span>
-                    <span class="dollcode">▘</span> = 2
-                        <span class="divider">|</span>
-                    <span class="dollcode">▌</span> = 3
+                    <p>
+                        <span class="dollcode">▖</span> = <span class="value">1</span>
+                            <span class="divider">|</span>
+                        <span class="dollcode">▘</span> = <span class="value">2</span>
+                            <span class="divider">|</span>
+                        <span class="dollcode">▌</span> = <span class="value">3</span>
+                    </p>
                 </code>
             </div>
             <p>
                 The most significant bit is on the left side.
             </p>
-            <h3>Examples</h3>
+            <h3>Examples:</h3>
             <div class="footer-examples">
                 <code>
                     <p>
                         <span class="type">numbers:</span> 1-16 <span class="arrow">→</span> <span class="dollcode">▖ ▘ ▌ ▖▖ ▖▘ ▖▌ ▘▖ ▘▘ ▘▌ ▌▖ ▌▘ ▌▌ ▖▖▖ ▖▖▘ ▖▖▌ ▖▘▖</span>
                     </p>
                     <p>
-                        <span class="type">complex number:</span> 42 <span class="arrow">→</span> <span class="dollcode">▖▖▖▌</span>
+                        <span class="type">complex number:</span> 42 <span class="arrow">→</span> <span class="dollcode">▖▖▖▌</span> [1×27 + 1×9 + 1×3 + 3]
                     </p>
                     <p>
-                        <span class="type">hexadecimal:</span> 0xFF <span class="arrow">→</span> <span class="dollcode">▘▘▌▌▌</span>
+                        <span class="type">hexadecimal:</span> 0xFF <span class="arrow">→</span> <span class="dollcode">▘▘▌▌▌</span> [255 in decimal]
                     </p>
                     <p>
-                        <span class="type">text:</span> Hello <span class="arrow">→</span> <span class="dollcode">▖▖▖▌▘▖▘▖▘▖▖▘▘▖▘▖▘▘▖▘▖▘▘▘▘</span>
+                        <span class="type">text:</span> hey :] <span class="arrow">→</span> <span class="dollcode">▌▘▖▘‍▌▖▌▘‍▖▖▖▖▖‍▌▖▘‍▖▌▖▖‍▘▌▌▌‍</span>
                     </p>
                 </code>
             </div>
@@ -151,6 +159,9 @@
                     </svg>
                     <span>Source code</span>
                 </a>
+            </p>
+            <p class="footer-credits">
+                Made with <span class="heart" aria-hidden="true">❤️</span> by <span class="creator">▌▖▌▘‍▌▘▌▖‍▌▖▌</span>
             </p>
         </div>
     </footer>
