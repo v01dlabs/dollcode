@@ -1,0 +1,29 @@
+name: WASM
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Install wasm-pack
+        run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
+
+      - name: Build WASM
+        run: wasm-pack build dollcode-wasm --target web
+
+      - name: Copy to docs
+        run: |
+          mkdir -p docs/pkg
+          cp -r dollcode-wasm/pkg/* docs/pkg/
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: wasm-pkg
+          path: dollcode-wasm/pkg/
