@@ -57,6 +57,32 @@ html.js-loading body {
     visibility: hidden;
 }
 
+html {
+    scrollbar-width: none;
+    -ms-overflow-style: -ms-autohiding-scrollbar;
+}
+
+html::-webkit-scrollbar {
+    width: 8px;
+}
+
+html::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+html::-webkit-scrollbar-thumb {
+    background-color: var(--text-dim);
+    border-radius: 4px;
+    opacity: 0;
+    transition: opacity 0.3s;
+}
+
+html:hover::-webkit-scrollbar-thumb,
+html:focus::-webkit-scrollbar-thumb,
+html:focus-within::-webkit-scrollbar-thumb {
+    opacity: 0.5;
+}
+
 /* Base Layout */
 body {
     display: flex;
@@ -67,7 +93,7 @@ body {
     background: var(--bg-base-p3);
     color: var(--text);
     color: var(--text-p3);
-    line-height: 1.6;
+    line-height: 1.2;
 }
 
 /* Header */
@@ -82,8 +108,9 @@ body {
 .header h1 {
     max-width: 1200px;
     margin: 0 auto;
+    margin-left: 3.0rem;
     font-size: 1.25rem;
-    font-weight: 700;
+    font-weight: 600;
 }
 
 /* Main Content */
@@ -91,14 +118,16 @@ body {
     display: flex;
     flex-direction: column;
     flex: 1;
-    width: 100%;
+    width: 80%;
     max-width: 1200px;
     margin: 0 auto;
     padding: 2rem 1.5rem;
 }
 
 .container {
-    margin: 2rem 0;
+    align-self: center;
+    width: 70%;
+    margin: 1.5rem 0;
     padding: 1.5rem;
     background: var(--bg-raised);
     background: var(--bg-raised-p3);
@@ -110,14 +139,16 @@ body {
 /* Input Section */
 .input-group {
     display: flex;
-    align-items: center;
     gap: 1rem;
+    align-items: center;
     margin-bottom: 1.5rem;
+    width: 100%;
+    min-width: 0;
 }
 
 input[type="text"] {
-    flex: 1;
-    min-height: 44px;
+    flex: 1 1 auto;
+    min-width: 0;
     padding: 0.75rem 1rem;
     background: var(--bg-base);
     background: var(--bg-base-p3);
@@ -127,7 +158,7 @@ input[type="text"] {
     color: var(--text);
     color: var(--text-p3);
     font-family: inherit;
-    font-size: 1rem;
+    font-size: 1.1rem;
 }
 
 input[type="text"]:focus {
@@ -139,9 +170,6 @@ input[type="text"]:focus {
 }
 
 /* Output Section */
-.output-container {
-    margin-top: 2rem;
-}
 
 .output-label {
     margin-bottom: 0.5rem;
@@ -152,69 +180,125 @@ input[type="text"]:focus {
 
 #output {
     position: relative;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    min-height: 7.5rem;
-    padding: 1.5rem 2rem;
+    display: block;
+    padding: 2rem;
+    margin: 0.0625rem;
     background: var(--bg-base);
     background: var(--bg-base-p3);
-    border: 1px solid var(--border);
-    border: 1px solid var(--border-p3);
-    border-radius: 6px;
+    border: 0.0625rem solid var(--border);
+    border: 0.0625rem solid var(--border-p3);
+    border-radius: 0.375rem;
     color: var(--secondary);
     color: var(--secondary-p3);
     font-family: 'Mono', monospace;
-    font-size: 2rem;
-    line-height: 1.2;
-    word-break: break-all;
-    white-space: pre-line;
-    transition: opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1),
-                transform 0.3s cubic-bezier(0.4, 0, 0.2, 1),
-                color 0.2s ease;
+    font-size: 1.6rem;
+    overflow: hidden;
+    transition: height 0.2s ease-out,
+                color 0.15s ease-in-out,
+                background-color 0.15s ease-in-out,
+                border-color 0.15s ease-in-out,
+                box-shadow 0.15s ease-in-out;
+    will-change: transform, height, color, background-color, border-color, box-shadow;
     animation: pulse-glow 3s ease-in-out infinite;
-    will-change: transform, box-shadow;
     --pulse-color: var(--secondary-subtle);
     --pulse-color-p3: var(--secondary-subtle-p3);
 }
 
 .output-content {
-    opacity: 1;
-    transform: translateY(0);
-    transition: opacity 0.3s ease, transform 0.3s ease;
-}
-
-.output-content.transitioning {
-    opacity: 0;
-    transform: translateY(10px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 95%;
+    padding: 0.75rem;
+    margin: 0;
+    text-align: center;
+    white-space: pre-wrap;
+    transition: opacity 0.15s ease-in-out;
+    word-break: break-all;
+    overflow-wrap: break-word;
+    letter-spacing: 0.05em;
+    line-height: 2;
 }
 
 #output.error {
     --pulse-color: var(--error-subtle);
     --pulse-color-p3: var(--error-subtle-p3);
-    color: var(--error) !important;
-    color: var(--error-p3) !important;
-    animation: none !important;
+}
+
+#output.error .output-content {
+    color: var(--error);
+    color: var(--error-p3);
+    word-break: normal;
+    overflow-wrap: break-word;
 }
 
 #output.error.shake {
     animation: shake 0.4s ease-in-out !important;
 }
 
-#output:hover {
+#output.clearing .output-content,
+#output.typing .output-content {
+    transition: none;
+}
+
+#output.transitioning {
+    transition: height 0.2s ease-out;
+}
+
+#output:not(.error):hover {
     color: var(--primary);
     color: var(--primary-p3);
     --pulse-color: var(--primary-subtle);
     --pulse-color-p3: var(--primary-subtle-p3);
 }
 
-#output.transitioning {
-    opacity: 0;
-    transform: translateY(10px);
+#output.error:hover {
+    color: var(--error);
+    color: var(--error-p3);
+    --pulse-color: var(--error-subtle);
+    --pulse-color-p3: var(--error-subtle-p3);
 }
 
-/* Buttons */
+/* Copy Button */
+.copy-button {
+    position: absolute;
+    top: 0.5rem;
+    right: 0.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 42px;
+    height: 42px;
+    background: transparent;
+    border: none;
+    color: var(--text-dim);
+    color: var(--text-dim-p3);
+    cursor: pointer;
+    opacity: 0.6;
+    transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.copy-button:hover {
+    background: transparent;
+    opacity: 1;
+    transform: scale(1.1);
+}
+
+#output:not(.error) .copy-button:hover {
+    color: var(--primary);
+    color: var(--primary-p3);
+}
+
+#output.error .copy-button:hover {
+    color: var(--error);
+    color: var(--error-p3);
+}
+
+.copy-button:active {
+    transform: scale(0.95);
+}
+
+/* Info Button */
 .info-button {
     display: flex;
     align-items: center;
@@ -226,11 +310,17 @@ input[type="text"]:focus {
     border: 1px solid var(--border);
     border: 1px solid var(--border-p3);
     border-radius: 4px;
-    color: var(--text-dim);
-    color: var(--text-dim-p3);
     cursor: pointer;
+    flex: 0 0 auto;
     flex-shrink: 0;
     transition: all 0.2s ease;
+}
+
+.info-button svg {
+    color: var(--text-dim);
+    color: var(--text-dim-p3);
+    opacity: 0.6;
+    transition: color 0.2s ease, opacity 0.2s ease;
 }
 
 .info-button:hover {
@@ -238,8 +328,12 @@ input[type="text"]:focus {
     background: var(--primary-subtle-p3);
     border-color: var(--primary);
     border-color: var(--primary-p3);
+}
+
+.info-button:hover svg {
     color: var(--primary);
     color: var(--primary-p3);
+    opacity: 1;
 }
 
 .info-button:focus {
@@ -248,42 +342,6 @@ input[type="text"]:focus {
     border-color: var(--primary-p3);
     box-shadow: 0 0 0 2px var(--primary-subtle);
     box-shadow: 0 0 0 2px var(--primary-subtle-p3);
-}
-
-.copy-button {
-    position: absolute;
-    top: 1rem;
-    right: 1rem;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 36px;
-    height: 36px;
-    background: var(--bg-alt);
-    background: var(--bg-alt-p3);
-    border: 1px solid var(--border);
-    border: 1px solid var(--border-p3);
-    border-radius: 4px;
-    color: var(--text-dim);
-    color: var(--text-dim-p3);
-    cursor: pointer;
-    opacity: 0.8;
-    transition: all 0.2s ease;
-}
-
-.copy-button:hover {
-    background: var(--primary-subtle);
-    background: var(--primary-subtle-p3);
-    border-color: var(--primary);
-    border-color: var(--primary-p3);
-    color: var(--primary);
-    color: var(--primary-p3);
-    opacity: 1;
-    transform: translateY(-1px);
-}
-
-.copy-button:active {
-    transform: translateY(0);
 }
 
 /* Info Panel */
@@ -339,7 +397,7 @@ input[type="text"]:focus {
     margin: 0;
     color: var(--primary);
     color: var(--primary-p3);
-    font-weight: 700;
+    font-weight: 600;
 }
 
 .close-button {
@@ -381,7 +439,7 @@ input[type="text"]:focus {
 .limits-section h3 {
     color: var(--primary);
     color: var(--primary-p3);
-    font-weight: 700;
+    font-weight: 600;
 }
 
 .features-list {
@@ -392,6 +450,7 @@ input[type="text"]:focus {
 
 /* Footer */
 .footer {
+    align-items: center;
     margin-top: auto;
     padding: 2rem 1.5rem;
     background: var(--bg-alt);
@@ -401,7 +460,8 @@ input[type="text"]:focus {
 }
 
 .footer-content {
-    max-width: 1200px;
+    width: 50%;
+    min-width: 700px;
     margin: 0 auto;
 }
 
@@ -410,7 +470,7 @@ input[type="text"]:focus {
     color: var(--primary);
     color: var(--primary-p3);
     font-size: 1.125rem;
-    font-weight: 700;
+    font-weight: 600;
 }
 
 .footer h3 {
@@ -418,7 +478,7 @@ input[type="text"]:focus {
     color: var(--primary);
     color: var(--primary-p3);
     font-size: 1rem;
-    font-weight: 700;
+    font-weight: 600;
 }
 
 .footer-examples {
@@ -437,7 +497,7 @@ input[type="text"]:focus {
     border-radius: 6px;
     color: var(--text-dim);
     color: var(--text-dim-p3);
-    font-size: 1.125rem;
+    font-size: 1.025rem;
 }
 
 .footer-examples .type {
@@ -501,36 +561,30 @@ input[type="text"]:focus {
 
 @keyframes pulse-glow {
     0% {
-        box-shadow: 0 0 0 0 var(--pulse-color);
-        box-shadow: 0 0 0 0 var(--pulse-color-p3);
-        transform: translateY(0);
+        box-shadow: 0 0 0 0 var(--pulse-color),
+                   0 0 0 0 var(--pulse-color-p3);
     }
     50% {
-        box-shadow: 0 0 20px 2px var(--pulse-color);
-        box-shadow: 0 0 20px 2px var(--pulse-color-p3);
-        transform: translateY(-1px);
+        box-shadow: 0 0 20px 2px var(--pulse-color),
+                   0 0 20px 2px var(--pulse-color-p3);
     }
     100% {
-        box-shadow: 0 0 0 0 var(--pulse-color);
-        box-shadow: 0 0 0 0 var(--pulse-color-p3);
-        transform: translateY(0);
+        box-shadow: 0 0 0 0 var(--pulse-color),
+                   0 0 0 0 var(--pulse-color-p3);
     }
 }
 
 /* Media Queries */
 @media (max-width: 640px) {
-    .input-group {
-        flex-direction: column;
-        align-items: stretch;
-    }
-
-    input[type="text"] {
-        width: 100%;
-    }
-
     #output {
         padding: 1.5rem;
         font-size: 1.5rem;
+        transition:
+            height 0.15s ease-out,
+            color 0.1s ease-in-out,
+            background-color 0.1s ease-in-out,
+            border-color 0.1s ease-in-out,
+            box-shadow 0.1s ease-in-out;
     }
 
     .footer-symbols {
@@ -544,10 +598,6 @@ input[type="text"]:focus {
         font-size: 1rem;
     }
 
-    .info-button {
-        align-self: flex-end;
-    }
-
     .footer {
         padding: 1.5rem;
     }
@@ -559,6 +609,15 @@ input[type="text"]:focus {
         animation-iteration-count: 1 !important;
         transition-duration: 0.01ms !important;
         scroll-behavior: auto !important;
+    }
+
+    #output,
+    .output-content {
+        transition: none !important;
+    }
+
+    #output {
+        animation: none !important;
     }
 
     #output, #output.transitioning {
@@ -601,10 +660,18 @@ input[type="text"]:focus {
     }
 
     #output {
-        border: 1pt solid #000;
-        animation: none;
-        box-shadow: none;
-        page-break-inside: avoid;
+        height: auto !important;
+        min-height: 0 !important;
+        animation: none !important;
+        box-shadow: none !important;
+        border: 1pt solid #000 !important;
+        color: #000 !important;
+        transition: none !important;
+    }
+
+    .output-content {
+        transition: none !important;
+        color: #000 !important;
     }
 
     .info-button,
@@ -615,6 +682,31 @@ input[type="text"]:focus {
     * {
         print-color-adjust: exact;
     }
+}
+
+.typing-char {
+    border-right: 2px solid var(--primary);
+    border-right: 2px solid var(--primary-p3);
+    animation: blink 1s step-end infinite;
+}
+
+.deleting-char {
+    border-right: 2px solid var(--error);
+    border-right: 2px solid var(--error-p3);
+    animation: blink 1s step-end infinite;
+}
+
+@keyframes blink {
+    50% {
+        border-color: transparent;
+    }
+}
+
+/* Error state cursor */
+#output.error .typing-char,
+#output.error .deleting-char {
+    border-right-color: var(--error);
+    border-right-color: var(--error-p3);
 }
 
 @supports (color: color(display-p3 0 0 0)) {
