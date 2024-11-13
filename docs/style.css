@@ -51,10 +51,14 @@
     font-family: 'Mono', monospace;
 }
 
-/* FOUC Prevention */
-html.js-loading,
-html.js-loading body {
-    visibility: hidden;
+.noscript-message {
+    text-align: center;
+    padding: 2rem 1rem;
+    margin: 1rem auto;
+    max-width: 600px;
+    line-height: 1.5;
+    color: var(--error);
+    color: var(--error-p3);
 }
 
 html {
@@ -863,5 +867,9 @@ input[type="text"]:focus {
         background: none;
         color: var(--text-dim);
         color: var(--text-dim-p3);
+    }
+
+    .noscript-message {
+        display: none !important;
     }
 }

@@ -427,6 +427,18 @@
         try {
             console.log('Attempting WASM load, retry:', retryCount);
 
+            if (!('WebAssembly' in window)) {
+                throw new Error('WebAssembly is not supported in this browser');
+            }
+
+            try {
+                await WebAssembly.instantiate(new WebAssembly.Module(new Uint8Array([
+                    0x0, 0x61, 0x73, 0x6d, 0x1, 0x0, 0x0, 0x0
+                ])));
+            } catch (e) {
+                throw new Error('JavaScript JIT is required for WebAssembly support.\nTry disabling private browsing or content blockers.');
+            }
+
             const wasmCheck = await fetch('./pkg/dollcode_wasm_bg.wasm');
             if (!wasmCheck.ok) {
                 throw new Error(`WASM file not found: ${wasmCheck.status}`);
@@ -474,8 +486,6 @@
                     TIMING.LOADING.TIMEOUT)
                 )
             ]);
-
-            document.documentElement.classList.remove('js-loading');
 
             const outputManager = new OutputManager(output, wasmModule);
             const cleanupInfoPanel = setupInfoPanel();

@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" class="js-loading">
+<html lang="en">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -29,17 +29,28 @@
     <meta http-equiv="Permissions-Policy" content="interest-cohort=()">
     <title>dollcode</title>
     <style>
-        html.js-loading,
-        html.js-loading body {
+        body > *:not(noscript) {
             visibility: hidden;
+        }
+        .js body > *:not(noscript) {
+            visibility: visible;
         }
         body {
             margin: 0;
             background: #0F1214;
         }
     </style>
+    <script>
+        document.documentElement.classList.add('js');
+    </script>
 </head>
-<body class="js-loading">
+<body>
+    <noscript>
+        <div class="noscript-message">
+            <h2>JavaScript Required</h2>
+            <p>dollcode requires JavaScript and WebAssembly to operate. Please enable JavaScript and reload the page.</p>
+        </div>
+    </noscript>
     <script>0</script>
     <header class="header" role="banner">
         <h1><img src="./assets/icon.png" alt="" style="height: 2.0rem; width: 2.0rem; vertical-align: middle; margin-right: 0.5rem;" aria-hidden="true">dollcode</h1>
