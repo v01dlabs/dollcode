@@ -544,8 +544,10 @@
 
     try {
         const cleanup = await setupApp();
-        window.addEventListener('unload', cleanup);
-    } catch (err) {
+        window.addEventListener('beforeunload', () => {
+            cleanup();
+        }, { passive: true });
+    }  catch (err) {
         console.error("Fatal application error:", err);
         document.documentElement.classList.remove('js-loading');
 
