@@ -1,19 +1,16 @@
 (async function() {
     const TIMING = {
         ANIMATION: {
-            CHAR: 6,
+            CHAR: 4,
             DELETE: 8,
             DELETE_FAST: 4,
             SHAKE: 400,
             COPY_FEEDBACK: 1200
         },
         PERFORMANCE: {
-            DEBOUNCE: 60,
-            RESIZE_THROTTLE: 10,
-            RAF_TIMEOUT: 100
-        },
-        SIZING: {
-            MIN_HEIGHT: 80
+            DEBOUNCE: 20,
+            RESIZE_THROTTLE: 20,
+            RAF_TIMEOUT: 80
         },
         LOADING: {
             MAX_RETRIES: 5,
@@ -42,7 +39,6 @@
 
     const CLASSES = Object.freeze({
         CONTENT: 'output-content',
-        COPY_BUTTON: 'copy-button',
         ERROR: 'error',
         SHAKE: 'shake'
     });
@@ -86,7 +82,6 @@
         #state;
         #output;
         #contentDiv;
-        #copyButton;
         #chars;
         #lastInput;
         #currentAnimation;
@@ -95,6 +90,8 @@
         #resizeObserver;
         #wasm;
         #keyState;
+        #heightRAF = null;
+        #lastHeight = 0;
 
         constructor(outputElement, wasmFunctions) {
             this.#state = State.IDLE;
@@ -109,6 +106,7 @@
 
             this.#setupDOM();
             this.#setupEventListeners();
+            this.#setupCopyFeedback();
         }
 
         #setupDOM() {
@@ -116,28 +114,14 @@
 
             this.#contentDiv = document.createElement('div');
             this.#contentDiv.className = CLASSES.CONTENT;
-            this.#contentDiv.style.transform = 'translateZ(0)';
-
-            this.#copyButton = document.createElement('button');
-            this.#copyButton.className = CLASSES.COPY_BUTTON;
-            this.#copyButton.setAttribute('aria-label', 'Copy to clipboard');
-            this.#copyButton.innerHTML = this.#getCopyButtonSVG();
+            this.#contentDiv.style.cssText = 'transform: translateZ(0); will-change: transform;';
+            this.#contentDiv.textContent = '▌▘▌▌‍▌▌▘▌‍▌▌▘▘‍▌▌▖▖‍▌▌▘▌‍▌▌▘▘‍';
 
             fragment.appendChild(this.#contentDiv);
-            fragment.appendChild(this.#copyButton);
 
             this.#output.textContent = '';
             this.#output.appendChild(fragment);
 
-            const computedStyle = window.getComputedStyle(this.#output);
-            const initialHeight = computedStyle.height;
-
-            this.#output.style.minHeight = `${Math.max(
-                parseInt(initialHeight),
-                TIMING.SIZING.MIN_HEIGHT
-            )}px`;
-
-            // Set initial content
             requestAnimationFrame(() => {
                 this.#contentDiv.textContent = '▌▘▌▌‍▌▌▘▌‍▌▌▘▘‍▌▌▖▖‍▌▌▘▌‍▌▌▘▘‍';
             });
@@ -148,8 +132,6 @@
                 this.#throttle(this.#updateHeight.bind(this), TIMING.PERFORMANCE.RESIZE_THROTTLE)
             );
             this.#resizeObserver.observe(this.#contentDiv);
-
-            this.#copyButton.addEventListener('click', this.#handleCopy.bind(this));
 
             const observer = new IntersectionObserver((entries) => {
                 entries.forEach(entry => {
@@ -164,32 +146,69 @@
             observer.observe(this.#output);
         }
 
-        #getCopyButtonSVG(success = false) {
-            return success ?
-                `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.3">
-                    <path d="M9 11.286 10.8 13 15 9m-3-2.409-.154-.164c-1.978-2.096-5.249-1.85-6.927.522-1.489 2.106-1.132 5.085.806 6.729L12 19l6.275-5.322c1.938-1.645 2.295-4.623.806-6.729-1.678-2.372-4.949-2.618-6.927-.522z" stroke-linecap="round" stroke-linejoin="round"/>
-                </svg>` :
-                `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.3">
-                    <path d="M10 8V7c0-.943 0-1.414.293-1.707S11.057 5 12 5h5c.943 0 1.414 0 1.707.293S19 6.057 19 7v5c0 .943 0 1.414-.293 1.707S17.943 14 17 14h-1m-9 5h5c.943 0 1.414 0 1.707-.293S14 17.943 14 17v-5c0-.943 0-1.414-.293-1.707S12.943 10 12 10H7c-.943 0-1.414 0-1.707.293S5 11.057 5 12v5c0 .943 0 1.414.293 1.707S6.057 19 7 19" stroke-linecap="round" stroke-linejoin="round"/>
-                </svg>`;
-        }
+        #setupCopyFeedback() {
+            let hoverFeedback = null;
+            let isHovering = false;
 
-        async #handleCopy() {
-            try {
-                let content = this.#contentDiv.textContent;
-
-                if (!this.#output.classList.contains(CLASSES.ERROR) && /[▖▘▌]/.test(content)) {
-                    content = content.replace(/[\n\r\t\u00A0\u2000-\u200C\u200E-\u200F\u2028-\u202F\uFEFF]/g, '');
+            const showHoverFeedback = (e) => {
+                if (!hoverFeedback) {
+                    hoverFeedback = document.createElement('div');
+                    hoverFeedback.className = 'hover-feedback';
+                    hoverFeedback.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.3">
+                        <path d="M10 8V7c0-.943 0-1.414.293-1.707S11.057 5 12 5h5c.943 0 1.414 0 1.707.293S19 6.057 19 7v5c0 .943 0 1.414-.293 1.707S17.943 14 17 14h-1m-9 5h5c.943 0 1.414 0 1.707-.293S14 17.943 14 17v-5c0-.943 0-1.414-.293-1.707S12.943 10 12 10H7c-.943 0-1.414 0-1.707.293S5 11.057 5 12v5c0 .943 0 1.414.293 1.707S6.057 19 7 19" stroke-linecap="round" stroke-linejoin="round"/>`;
+                    document.body.appendChild(hoverFeedback);
                 }
+                hoverFeedback.style.left = `${e.clientX + 12}px`;
+                hoverFeedback.style.top = `${e.clientY - 12}px`;
+            };
 
-                await navigator.clipboard.writeText(content);
-                this.#copyButton.innerHTML = this.#getCopyButtonSVG(true);
-                setTimeout(() => {
-                    this.#copyButton.innerHTML = this.#getCopyButtonSVG();
-                }, TIMING.ANIMATION.COPY_FEEDBACK);
-            } catch (err) {
-                console.error('Copy failed:', err);
-            }
+            this.#contentDiv.addEventListener('mousemove', (e) => {
+                isHovering = true;
+                showHoverFeedback(e);
+            });
+
+            this.#contentDiv.addEventListener('mouseleave', () => {
+                isHovering = false;
+                if (hoverFeedback) {
+                    hoverFeedback.remove();
+                    hoverFeedback = null;
+                }
+            });
+
+            this.#contentDiv.addEventListener('click', async (e) => {
+                try {
+                    if (hoverFeedback) {
+                        hoverFeedback.classList.add('hiding');
+                        setTimeout(() => {
+                            hoverFeedback.remove();
+                            hoverFeedback = null;
+                        }, 200);
+                    }
+
+                    await navigator.clipboard.writeText(this.#contentDiv.textContent);
+                    const copyFeedback = document.createElement('div');
+                    copyFeedback.className = 'copy-feedback';
+                    copyFeedback.style.left = `${e.clientX + 12}px`;
+                    copyFeedback.style.top = `${e.clientY - 12}px`;
+                    copyFeedback.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.3">
+                        <path d="M9 11.286 10.8 13 15 9m-3-2.409-.154-.164c-1.978-2.096-5.249-1.85-6.927.522-1.489 2.106-1.132 5.085.806 6.729L12 19l6.275-5.322c1.938-1.645 2.295-4.623.806-6.729-1.678-2.372-4.949-2.618-6.927-.522z" stroke-linecap="round" stroke-linejoin="round"/>`;
+                    copyFeedback.style.left = `${e.clientX + 12}px`;
+                    copyFeedback.style.top = `${e.clientY - 12}px`;
+                    document.body.appendChild(copyFeedback);
+
+                    copyFeedback.classList.add('active');
+                    copyFeedback.addEventListener('animationend', () => {
+                        copyFeedback.remove();
+                        setTimeout(() => {
+                            if (isHovering) {
+                                showHoverFeedback(e);
+                            }
+                        }, 400);
+                    });
+                } catch (err) {
+                    console.error('Failed to copy:', err);
+                }
+            });
         }
 
         #clearErrorState() {
@@ -234,37 +253,36 @@
 
             if (immediate) {
                 this.#chars = Array.from(content);
-                requestAnimationFrame(() => {
-                    this.#contentDiv.textContent = content;
-                    this.#updateHeight();
-                });
+                this.#contentDiv.textContent = content;
+                this.#updateHeight();
                 return;
             }
 
             const animation = {
                 id: Symbol('animation'),
                 cancelled: false,
-                cancel() {
-                    this.cancelled = true;
-                }
+                cancel() { this.cancelled = true; }
             };
             this.#currentAnimation = animation;
 
             try {
                 const oldChars = [...this.#chars];
                 const newChars = Array.from(content);
-                const commonLength = Math.min(oldChars.length, newChars.length);
                 let i = 0;
 
-                while (i < commonLength && oldChars[i] === newChars[i]) i++;
+                while (i < oldChars.length && i < newChars.length && oldChars[i] === newChars[i]) i++;
+
+                const updateContent = () => {
+                    if (!animation.cancelled) {
+                        this.#contentDiv.textContent = this.#chars.join('');
+                    }
+                };
 
                 if (oldChars.length > i) {
                     this.#state = State.DELETING;
                     while (this.#chars.length > i && !animation.cancelled) {
                         this.#chars.pop();
-                        requestAnimationFrame(() => {
-                            this.#contentDiv.textContent = this.#chars.join('');
-                        });
+                        requestAnimationFrame(updateContent);
                         const speed = this.#keyState.isHoldThreshold('Backspace') ?
                             TIMING.ANIMATION.DELETE_FAST : TIMING.ANIMATION.DELETE;
                         await new Promise(r => setTimeout(r, speed));
@@ -275,33 +293,42 @@
                     this.#state = State.TYPING;
                     while (i < newChars.length && !animation.cancelled) {
                         this.#chars.push(newChars[i++]);
-                        requestAnimationFrame(() => {
-                            this.#contentDiv.textContent = this.#chars.join('');
-                        });
+                        requestAnimationFrame(updateContent);
                         await new Promise(r => setTimeout(r, TIMING.ANIMATION.CHAR));
                     }
                 }
 
+                if (!animation.cancelled) {
+                    this.#state = State.IDLE;
+                    this.#chars = Array.from(content);
+                    this.#contentDiv.textContent = content;
+                    this.#updateHeight();
+                }
             } finally {
                 if (this.#currentAnimation === animation) {
                     this.#currentAnimation = null;
-                    if (!animation.cancelled) {
-                        this.#state = State.IDLE;
-                        this.#chars = Array.from(content);
-                        requestAnimationFrame(() => {
-                            this.#contentDiv.textContent = content;
-                            this.#updateHeight();
-                        });
-                    }
                 }
             }
         }
 
-        #updateHeight() {
-            const newHeight = this.#contentDiv.scrollHeight;
-            requestAnimationFrame(() => {
-                this.#output.style.height = `${newHeight}px`;
-            });
+        #updateHeight = () => {
+            if (!this.#heightRAF) {
+                this.#heightRAF = requestAnimationFrame(() => {
+                    const computedStyle = window.getComputedStyle(this.#output);
+                    const minHeight = parseFloat(computedStyle.minHeight);
+                    const padding = parseFloat(computedStyle.paddingTop) + parseFloat(computedStyle.paddingBottom);
+                    const contentHeight = this.#contentDiv.scrollHeight + padding;
+
+                    const newHeight = Math.max(contentHeight, minHeight);
+
+                    if (newHeight !== this.#lastHeight) {
+                        this.#output.style.height = `${newHeight}px`;
+                        this.#lastHeight = newHeight;
+                    }
+
+                    this.#heightRAF = null;
+                });
+            }
         }
 
         #throttle(func, limit) {
@@ -381,6 +408,17 @@
             this.#clearErrorState();
             this.#isProcessing = false;
         }
+    }
+
+    function createCopyFeedback() {
+        const feedback = document.createElement('div');
+        feedback.className = 'copy-feedback';
+        feedback.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path>
+            <polyline points="9 11 12 14 22 4"></polyline>
+        </svg>`;
+        document.body.appendChild(feedback);
+        return feedback;
     }
 
     function setupInfoPanel() {
@@ -529,7 +567,7 @@
 
         } catch (err) {
             console.error("Critical initialization error:", err);
-            document.documentElement.classList.remove('js-loading');
+            document.documentElement.classList.remove('js');
 
             const output = document.querySelector(SELECTORS.OUTPUT);
             if (output) {
@@ -544,13 +582,11 @@
 
     try {
         const cleanup = await setupApp();
-        window.addEventListener('beforeunload', () => {
+        window.addEventListener('pagehide', () => {
             cleanup();
         }, { passive: true });
-    }  catch (err) {
+    } catch (err) {
         console.error("Fatal application error:", err);
-        document.documentElement.classList.remove('js-loading');
-
         const output = document.querySelector(SELECTORS.OUTPUT);
         if (output) {
             const errorMessage = err.message || 'Unknown error occurred';
