@@ -5,7 +5,17 @@
             DELETE: 8,
             DELETE_FAST: 4,
             SHAKE: 400,
-            COPY_FEEDBACK: 1200
+            COPY_FEEDBACK: 1200,
+            COPY_FADE: 300,
+            COPY_COOLDOWN: 400,
+            LOADING: 600,
+            LOADING_CLEANUP: 1200
+        },
+        PHYSICS: {
+            VELOCITY_FACTOR: 0.1,
+            MIN_VELOCITY: 0,
+            MAX_VELOCITY: 10,
+            FADE_DISTANCE: 5
         },
         PERFORMANCE: {
             DEBOUNCE: 20,
@@ -20,6 +30,100 @@
         INPUT: {
             HELD_THRESHOLD: 300
         }
+    };
+
+    const createLoadingAnimation = (outputElement, finalText = "", options = {}) => {
+        const {
+            duration = TIMING.ANIMATION.LOADING,
+            fps = 60,
+            minChars = 32,
+            maxChars = 126
+        } = options;
+
+        const frameTime = 2400 / fps;
+        let startTime = null;
+        let lastFrameTime = null;
+        let animationFrame = null;
+
+        const getRandomChar = () => String.fromCharCode(
+            minChars + Math.floor(Math.random() * (maxChars - minChars + 1))
+        );
+
+        const getGlitchText = (target) => {
+            const tempSpan = document.createElement('span');
+            tempSpan.style.visibility = 'hidden';
+            tempSpan.style.whiteSpace = 'nowrap';
+            outputElement.appendChild(tempSpan);
+
+            const computedStyle = window.getComputedStyle(outputElement);
+            const paddingLeft = parseFloat(computedStyle.paddingLeft);
+            const availableWidth = outputElement.clientWidth - paddingLeft + 42;
+
+            let chars = '';
+            while (tempSpan.offsetWidth < availableWidth) {
+                chars += getRandomChar();
+                tempSpan.textContent = chars;
+            }
+
+            tempSpan.textContent = chars;
+            if (tempSpan.offsetWidth > (availableWidth)) {
+                chars = chars.slice(0, -1);
+            }
+
+            outputElement.removeChild(tempSpan);
+
+            return chars.split('').map((char, i) =>
+                target[i] === ' ' || target[i] === '\u200D' ? target[i] : char
+            ).join('');
+        };
+
+        const animate = (timestamp) => {
+            if (!startTime) startTime = timestamp;
+            if (!lastFrameTime) lastFrameTime = timestamp;
+
+            const progress = timestamp - startTime;
+            const delta = timestamp - lastFrameTime;
+
+            if (delta >= frameTime) {
+                lastFrameTime = timestamp;
+                outputElement.classList.add('expanding');
+
+                if (progress < duration) {
+                    outputElement.textContent = getGlitchText(finalText);
+                } else {
+                    outputElement.textContent = finalText;
+                    outputElement.classList.remove('expanding');
+                    animationFrame = null;
+                    return;
+                }
+            }
+
+            animationFrame = requestAnimationFrame(animate);
+        };
+
+        const start = () => {
+            if (animationFrame) cancelAnimationFrame(animationFrame);
+            startTime = null;
+            lastFrameTime = null;
+            animationFrame = requestAnimationFrame(animate);
+        };
+
+        const stop = () => {
+            if (animationFrame) {
+                cancelAnimationFrame(animationFrame);
+                animationFrame = null;
+            }
+            outputElement.textContent = finalText;
+            outputElement.classList.remove('expanding');
+        };
+
+        const destroy = () => {
+            stop();
+            startTime = null;
+            lastFrameTime = null;
+        };
+
+        return { start, stop, destroy };
     };
 
     const State = Object.freeze({
@@ -110,20 +214,24 @@
         }
 
         #setupDOM() {
+            this.#output.style.visibility = 'hidden';
             const fragment = document.createDocumentFragment();
 
             this.#contentDiv = document.createElement('div');
             this.#contentDiv.className = CLASSES.CONTENT;
             this.#contentDiv.style.cssText = 'transform: translateZ(0); will-change: transform;';
-            this.#contentDiv.textContent = '▌▘▌▌‍▌▌▘▌‍▌▌▘▘‍▌▌▖▖‍▌▌▘▌‍▌▌▘▘‍';
+
+            const initialText = '▖▌▘▘‍▖▌▖▘‍▖▘▖▌‍';
+            const loadingAnim = createLoadingAnimation(this.#contentDiv, initialText);
+            loadingAnim.start();
 
             fragment.appendChild(this.#contentDiv);
-
             this.#output.textContent = '';
             this.#output.appendChild(fragment);
 
             requestAnimationFrame(() => {
-                this.#contentDiv.textContent = '▌▘▌▌‍▌▌▘▌‍▌▌▘▘‍▌▌▖▖‍▌▌▘▌‍▌▌▘▘‍';
+                this.#output.style.visibility = 'visible';
+                setTimeout(() => loadingAnim.destroy(), TIMING.ANIMATION.LOADING_CLEANUP);
             });
         }
 
@@ -149,64 +257,122 @@
         #setupCopyFeedback() {
             let hoverFeedback = null;
             let isHovering = false;
+            let copyAnimationInProgress = false;
+            let copyAnimationTimeout = null;
+
+            const createCopyFeedback = (e) => {
+                const feedback = document.createElement('div');
+                feedback.className = 'copy-feedback';
+
+                feedback.style.left = `${e.clientX + 12}px`;
+                feedback.style.top = `${e.clientY - 12}px`;
+
+                feedback.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.3">
+                    <path d="M9 11.286 10.8 13 15 9m-3-2.409-.154-.164c-1.978-2.096-5.249-1.85-6.927.522-1.489 2.106-1.132 5.085.806 6.729L12 19l6.275-5.322c1.938-1.645 2.295-4.623.806-6.729-1.678-2.372-4.949-2.618-6.927-.522z" stroke-linecap="round" stroke-linejoin="round"/>`;
+
+                document.body.appendChild(feedback);
+
+                const angleRange = 60;
+                const randomAngle = (Math.random() * angleRange - angleRange/2) * (Math.PI / 180);
+
+                const baseAngle = -Math.PI/2;
+                const finalAngle = baseAngle + randomAngle;
+
+                const velocity = 60;
+                const directionX = Math.cos(finalAngle) * velocity;
+                const directionY = Math.sin(finalAngle) * velocity;
+
+                const rotation = (Math.random() * 60 - 30);
+
+                const waveAmplitude = 30;
+                const waveX = Math.cos(finalAngle + Math.PI/2) * waveAmplitude;
+                const waveY = Math.sin(finalAngle + Math.PI/2) * waveAmplitude;
+
+                feedback.style.setProperty('--move-x', `${directionX}px`);
+                feedback.style.setProperty('--move-y', `${directionY}px`);
+                feedback.style.setProperty('--rotation', `${rotation}deg`);
+                feedback.style.setProperty('--wave-x', `${waveX}px`);
+                feedback.style.setProperty('--wave-y', `${waveY}px`);
+
+                return feedback;
+            };
 
             const showHoverFeedback = (e) => {
+                if (copyAnimationInProgress) return;
+
                 if (!hoverFeedback) {
                     hoverFeedback = document.createElement('div');
                     hoverFeedback.className = 'hover-feedback';
                     hoverFeedback.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.3">
                         <path d="M10 8V7c0-.943 0-1.414.293-1.707S11.057 5 12 5h5c.943 0 1.414 0 1.707.293S19 6.057 19 7v5c0 .943 0 1.414-.293 1.707S17.943 14 17 14h-1m-9 5h5c.943 0 1.414 0 1.707-.293S14 17.943 14 17v-5c0-.943 0-1.414-.293-1.707S12.943 10 12 10H7c-.943 0-1.414 0-1.707.293S5 11.057 5 12v5c0 .943 0 1.414.293 1.707S6.057 19 7 19" stroke-linecap="round" stroke-linejoin="round"/>`;
                     document.body.appendChild(hoverFeedback);
+
+                    void hoverFeedback.offsetHeight;
                 }
+
                 hoverFeedback.style.left = `${e.clientX + 12}px`;
                 hoverFeedback.style.top = `${e.clientY - 12}px`;
+                requestAnimationFrame(() => {
+                    hoverFeedback.style.opacity = '1';
+                });
             };
 
             this.#contentDiv.addEventListener('mousemove', (e) => {
                 isHovering = true;
-                showHoverFeedback(e);
+                if (!copyAnimationInProgress) {
+                    showHoverFeedback(e);
+                }
             });
 
             this.#contentDiv.addEventListener('mouseleave', () => {
                 isHovering = false;
                 if (hoverFeedback) {
-                    hoverFeedback.remove();
-                    hoverFeedback = null;
+                    hoverFeedback.style.opacity = '0';
+                    setTimeout(() => {
+                        if (!isHovering && hoverFeedback) {
+                            hoverFeedback.remove();
+                            hoverFeedback = null;
+                        }
+                    }, TIMING.ANIMATION.COPY_FADE);
                 }
             });
 
             this.#contentDiv.addEventListener('click', async (e) => {
                 try {
+                    if (copyAnimationTimeout) {
+                        clearTimeout(copyAnimationTimeout);
+                    }
+
+                    copyAnimationInProgress = true;
+
                     if (hoverFeedback) {
-                        hoverFeedback.classList.add('hiding');
+                        hoverFeedback.style.opacity = '0';
                         setTimeout(() => {
-                            hoverFeedback.remove();
-                            hoverFeedback = null;
-                        }, 200);
+                            if (hoverFeedback) {
+                                hoverFeedback.remove();
+                                hoverFeedback = null;
+                            }
+                        }, TIMING.ANIMATION.COPY_FADE);
                     }
 
                     await navigator.clipboard.writeText(this.#contentDiv.textContent);
-                    const copyFeedback = document.createElement('div');
-                    copyFeedback.className = 'copy-feedback';
-                    copyFeedback.style.left = `${e.clientX + 12}px`;
-                    copyFeedback.style.top = `${e.clientY - 12}px`;
-                    copyFeedback.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.3">
-                        <path d="M9 11.286 10.8 13 15 9m-3-2.409-.154-.164c-1.978-2.096-5.249-1.85-6.927.522-1.489 2.106-1.132 5.085.806 6.729L12 19l6.275-5.322c1.938-1.645 2.295-4.623.806-6.729-1.678-2.372-4.949-2.618-6.927-.522z" stroke-linecap="round" stroke-linejoin="round"/>`;
-                    copyFeedback.style.left = `${e.clientX + 12}px`;
-                    copyFeedback.style.top = `${e.clientY - 12}px`;
-                    document.body.appendChild(copyFeedback);
+                    const copyFeedback = createCopyFeedback(e);
 
                     copyFeedback.classList.add('active');
+
                     copyFeedback.addEventListener('animationend', () => {
-                        copyFeedback.remove();
+                        copyFeedback.classList.add('fading');
+
                         setTimeout(() => {
-                            if (isHovering) {
-                                showHoverFeedback(e);
-                            }
-                        }, 400);
+                            copyFeedback.remove();
+                            copyAnimationTimeout = setTimeout(() => {
+                                copyAnimationInProgress = false;
+                            }, TIMING.ANIMATION.COPY_COOLDOWN);
+                        }, TIMING.ANIMATION.COPY_FADE);
                     });
                 } catch (err) {
                     console.error('Failed to copy:', err);
+                    copyAnimationInProgress = false;
                 }
             });
         }
@@ -408,17 +574,6 @@
             this.#clearErrorState();
             this.#isProcessing = false;
         }
-    }
-
-    function createCopyFeedback() {
-        const feedback = document.createElement('div');
-        feedback.className = 'copy-feedback';
-        feedback.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path>
-            <polyline points="9 11 12 14 22 4"></polyline>
-        </svg>`;
-        document.body.appendChild(feedback);
-        return feedback;
     }
 
     function setupInfoPanel() {
