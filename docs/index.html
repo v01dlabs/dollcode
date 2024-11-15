@@ -32,19 +32,25 @@
     <meta http-equiv="Permissions-Policy" content="interest-cohort=()">
     <title>dollcode</title>
     <style>
-        body > *:not(noscript) {
-            visibility: hidden;
-        }
-        .js body > *:not(noscript) {
-            visibility: visible;
-        }
         body {
             margin: 0;
             background: #0F1214;
+            opacity: 0;
+        }
+        .js body {
+            opacity: 1;
+            transition: opacity 0.1s;
+        }
+        noscript {
+            display: none;
+        }
+        .no-js noscript {
+            display: block;
         }
     </style>
     <script>
         document.documentElement.classList.add('js');
+        window.addEventListener('load', () => document.body.style.opacity = '1');
     </script>
 </head>
 <body>
