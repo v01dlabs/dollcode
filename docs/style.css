@@ -79,7 +79,7 @@ button, input {
 
     /* Base Font */
     font-family: "Doll Mono", monospace;
-    text-rendering: optimizeLegibility;
+    text-rendering: optimizelegibility;
     -moz-osx-font-smoothing: grayscale;
     -webkit-font-smoothing: antialiased;
 
@@ -201,7 +201,7 @@ body {
 .input-group {
     align-items: center;
     display: flex;
-    margin: 0 0 0.5rem 0;
+    margin: 0 0 0.5rem;
     gap: 0.5rem;
     width: 100%;
 }
@@ -240,7 +240,7 @@ input[type="text"]:focus {
     color: var(--secondary);
     color: var(--secondary-p3);
     position: relative;
-    display: grid;
+    display: block;
     align-content: start;
     font-size: 1.6rem;
     min-height: 2.5em;
@@ -327,7 +327,7 @@ input[type="text"]:focus {
     height: 2rem;
     color: var(--secondary);
     color: var(--secondary-p3);
-    stroke: currentColor;
+    stroke: currentcolor;
 }
 
 .copy-feedback.active {
@@ -553,12 +553,6 @@ input[type="text"]:focus {
     text-align: left;
 }
 
-.what-content {
-    overflow-wrap: break-word;
-    text-align: left;
-    word-break: break-word;
-}
-
 .what-content p {
     margin: 0.75rem;
 }
@@ -761,13 +755,12 @@ input[type="text"]:focus {
     .creator {
         background: linear-gradient(
             90deg,
-            color(display-p3 0.357 0.808 0.980 / 0.9) 0%,
-            color(display-p3 0.961 0.663 0.722 / 0.85) 30%,
-            color(display-p3 0.941 0.941 0.941 / 0.95) 50%,
-            color(display-p3 0.961 0.663 0.722 / 0.85) 70%,
-            color(display-p3 0.357 0.808 0.980 / 0.9) 100%
+            color(display-p3 0.357 0.808 0.980 / 90%) 0%,
+            color(display-p3 0.961 0.663 0.722 / 85%) 30%,
+            color(display-p3 0.941 0.941 0.941 / 95%) 50%,
+            color(display-p3 0.961 0.663 0.722 / 85%) 70%,
+            color(display-p3 0.357 0.808 0.980 / 90%) 100%
         );
-        -webkit-background-clip: text;
         background-clip: text;
         color: transparent;
     }
@@ -812,15 +805,6 @@ input[type="text"]:focus {
     .output-content {
         transition: none !important;
     }
-
-    #output {
-        animation: none !important;
-    }
-
-    #output {
-        animation: none !important;
-        transform: none !important;
-    }
 }
 
 @media (forced-colors: active) {
@@ -840,11 +824,11 @@ input[type="text"]:focus {
     }
 
     :root {
-        --bg-base: #ffffff;
-        --border: #cccccc;
-        --primary: #000000;
-        --secondary: #666666;
-        --text: #000000;
+        --bg-base: #fff;
+        --border: #ccc;
+        --primary: #000;
+        --secondary: #666;
+        --text: #000;
     }
 
     .container {

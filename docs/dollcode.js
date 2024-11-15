@@ -36,7 +36,7 @@
         const {
             duration = TIMING.ANIMATION.LOADING,
             fps = 60,
-            minChars = 32,
+            minChars = 33,
             maxChars = 126
         } = options;
 
@@ -58,7 +58,7 @@
 
             const computedStyle = window.getComputedStyle(outputElement);
             const paddingLeft = parseFloat(computedStyle.paddingLeft);
-            const availableWidth = outputElement.clientWidth - paddingLeft + 42;
+            const availableWidth = outputElement.clientWidth - paddingLeft;
 
             let chars = '';
             while (tempSpan.offsetWidth < availableWidth) {
@@ -73,9 +73,7 @@
 
             outputElement.removeChild(tempSpan);
 
-            return chars.split('').map((char, i) =>
-                target[i] === ' ' || target[i] === '\u200D' ? target[i] : char
-            ).join('');
+            return chars;
         };
 
         const animate = (timestamp) => {
