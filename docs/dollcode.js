@@ -1,3 +1,779 @@
-(async function(){let t={ANIMATION:{CHAR:4,DELETE:8,DELETE_FAST:4,SHAKE:400,COPY_FEEDBACK:1200,COPY_FADE:300,COPY_COOLDOWN:400,LOADING:600,LOADING_CLEANUP:1200},PHYSICS:{VELOCITY_FACTOR:.1,MIN_VELOCITY:0,MAX_VELOCITY:10,FADE_DISTANCE:5},PERFORMANCE:{DEBOUNCE:20,RESIZE_THROTTLE:20,RAF_TIMEOUT:80},LOADING:{MAX_RETRIES:5,RETRY_DELAY:200,TIMEOUT:1e4},INPUT:{HELD_THRESHOLD:300}},e=(e,i="",n={})=>{let{duration:s=t.ANIMATION.LOADING,fps:r=60,minChars:o=32,maxChars:l=126}=n,a=2400/r,c=null,h=null,u=null,d=()=>String.fromCharCode(o+Math.floor(Math.random()*(l-o+1))),$=t=>{let i=document.createElement("span");i.style.visibility="hidden",i.style.whiteSpace="nowrap",e.appendChild(i);let n=window.getComputedStyle(e),s=parseFloat(n.paddingLeft),r=e.clientWidth-s+42,o="";for(;i.offsetWidth<r;)o+=d(),i.textContent=o;return i.textContent=o,i.offsetWidth>r&&(o=o.slice(0,-1)),e.removeChild(i),o.split("").map((e,i)=>" "===t[i]||"‍"===t[i]?t[i]:e).join("")},p=t=>{c||(c=t),h||(h=t);let n=t-c,r=t-h;if(r>=a){if(h=t,e.classList.add("expanding"),n<s)e.textContent=$(i);else{e.textContent=i,e.classList.remove("expanding"),u=null;return}}u=requestAnimationFrame(p)},E=()=>{u&&cancelAnimationFrame(u),c=null,h=null,u=requestAnimationFrame(p)},_=()=>{u&&(cancelAnimationFrame(u),u=null),e.textContent=i,e.classList.remove("expanding")},A=()=>{_(),c=null,h=null};return{start:E,stop:_,destroy:A}},i=Object.freeze({IDLE:"idle",TYPING:"typing",DELETING:"deleting",ERROR:"error"}),n=Object.freeze({INPUT:"#input",OUTPUT:"#output",INFO_BUTTON:"#info-button",INFO_PANEL:"#info-panel",CLOSE_BUTTON:".close-button"}),s=Object.freeze({CONTENT:"output-content",ERROR:"error",SHAKE:"shake"}),r=new WeakMap;class o{#a;#b;#c;#d;#e;#f;#g;#h;#i;#j;#k;#l=null;#m=0;constructor(e,n){this.#a=i.IDLE,this.#b=e,this.#j=n,this.#d=[],this.#e="",this.#f=null,this.#g=null,this.#h=!1,this.#k=new class e{constructor(){r.set(this,new Map)}isKeyHeld(t){return r.get(this).has(t)}getHoldTime(t){let e=r.get(this).get(t);return e?Date.now()-e:0}isHoldThreshold(e){return this.getHoldTime(e)>t.INPUT.HELD_THRESHOLD}pressKey(t){this.isKeyHeld(t)||r.get(this).set(t,Date.now())}releaseKey(t){r.get(this).delete(t)}clear(){r.get(this).clear()}},this.#n(),this.#o(),this.#p()}#n(){this.#b.style.visibility="hidden";let l=document.createDocumentFragment();this.#c=document.createElement("div"),this.#c.className=s.CONTENT,this.#c.style.cssText="transform: translateZ(0); will-change: transform;";let a=e(this.#c,"▖▌▘▘‍▖▌▖▘‍▖▘▖▌‍");a.start(),l.appendChild(this.#c),this.#b.textContent="",this.#b.appendChild(l),requestAnimationFrame(()=>{this.#b.style.visibility="visible",setTimeout(()=>a.destroy(),t.ANIMATION.LOADING_CLEANUP)})}#o(){this.#i=new ResizeObserver(this.#q(this.#r.bind(this),t.PERFORMANCE.RESIZE_THROTTLE)),this.#i.observe(this.#c);let c=new IntersectionObserver(t=>{t.forEach(t=>{t.isIntersecting?this.#c.style.willChange="transform, opacity":this.#c.style.willChange="auto"})});c.observe(this.#b)}#p(){let h=null,u=!1,d=!1,$=null,p=t=>{let e=document.createElement("div");e.className="copy-feedback",e.style.left=`${t.clientX+12}px`,e.style.top=`${t.clientY-12}px`,e.innerHTML=`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.3">
-                    <path d="M9 11.286 10.8 13 15 9m-3-2.409-.154-.164c-1.978-2.096-5.249-1.85-6.927.522-1.489 2.106-1.132 5.085.806 6.729L12 19l6.275-5.322c1.938-1.645 2.295-4.623.806-6.729-1.678-2.372-4.949-2.618-6.927-.522z" stroke-linecap="round" stroke-linejoin="round"/>`,document.body.appendChild(e);let i=-Math.PI/2+(60*Math.random()-30)*(Math.PI/180);return e.style.setProperty("--move-x",`${60*Math.cos(i)}px`),e.style.setProperty("--move-y",`${60*Math.sin(i)}px`),e.style.setProperty("--rotation",`${60*Math.random()-30}deg`),e.style.setProperty("--wave-x",`${30*Math.cos(i+Math.PI/2)}px`),e.style.setProperty("--wave-y",`${30*Math.sin(i+Math.PI/2)}px`),e},E=t=>{d||(h||((h=document.createElement("div")).className="hover-feedback",h.innerHTML=`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.3">
-                        <path d="M10 8V7c0-.943 0-1.414.293-1.707S11.057 5 12 5h5c.943 0 1.414 0 1.707.293S19 6.057 19 7v5c0 .943 0 1.414-.293 1.707S17.943 14 17 14h-1m-9 5h5c.943 0 1.414 0 1.707-.293S14 17.943 14 17v-5c0-.943 0-1.414-.293-1.707S12.943 10 12 10H7c-.943 0-1.414 0-1.707.293S5 11.057 5 12v5c0 .943 0 1.414.293 1.707S6.057 19 7 19" stroke-linecap="round" stroke-linejoin="round"/>`,document.body.appendChild(h),h.offsetHeight),h.style.left=`${t.clientX+12}px`,h.style.top=`${t.clientY-12}px`,requestAnimationFrame(()=>{h.style.opacity="1"}))};this.#c.addEventListener("mousemove",t=>{u=!0,d||E(t)}),this.#c.addEventListener("mouseleave",()=>{u=!1,h&&(h.style.opacity="0",setTimeout(()=>{!u&&h&&(h.remove(),h=null)},t.ANIMATION.COPY_FADE))}),this.#c.addEventListener("click",async e=>{try{$&&clearTimeout($),d=!0,h&&(h.style.opacity="0",setTimeout(()=>{h&&(h.remove(),h=null)},t.ANIMATION.COPY_FADE)),await navigator.clipboard.writeText(this.#c.textContent);let i=p(e);i.classList.add("active"),i.addEventListener("animationend",()=>{i.classList.add("fading"),setTimeout(()=>{i.remove(),$=setTimeout(()=>{d=!1},t.ANIMATION.COPY_COOLDOWN)},t.ANIMATION.COPY_FADE)})}catch(n){console.error("Failed to copy:",n),d=!1}})}#s(){this.#a===i.ERROR&&(this.#b.classList.remove(s.ERROR,s.SHAKE),this.#a=i.IDLE)}async #t(_){this.#f&&(this.#f.cancel(),this.#f=null),this.#d=[],this.#a!==i.ERROR&&(this.#a=i.ERROR,this.#b.classList.remove(s.ERROR,s.SHAKE),this.#b.offsetWidth,this.#b.classList.add(s.ERROR,s.SHAKE),setTimeout(()=>{this.#b.classList.remove(s.SHAKE)},t.ANIMATION.SHAKE)),requestAnimationFrame(()=>{this.#c.textContent=_.toString(),this.#r()})}async #u(A,m=!1){if(this.#f&&(this.#f.cancel(),this.#f=null),this.#s(),m){this.#d=Array.from(A),this.#c.textContent=A,this.#r();return}let y={id:Symbol("animation"),cancelled:!1,cancel(){this.cancelled=!0}};this.#f=y;try{let T=[...this.#d],v=Array.from(A),O=0;for(;O<T.length&&O<v.length&&T[O]===v[O];)O++;let g=()=>{y.cancelled||(this.#c.textContent=this.#d.join(""))};if(T.length>O)for(this.#a=i.DELETING;this.#d.length>O&&!y.cancelled;){this.#d.pop(),requestAnimationFrame(g);let I=this.#k.isHoldThreshold("Backspace")?t.ANIMATION.DELETE_FAST:t.ANIMATION.DELETE;await new Promise(t=>setTimeout(t,I))}if(!y.cancelled)for(this.#a=i.TYPING;O<v.length&&!y.cancelled;)this.#d.push(v[O++]),requestAnimationFrame(g),await new Promise(e=>setTimeout(e,t.ANIMATION.CHAR));y.cancelled||(this.#a=i.IDLE,this.#d=Array.from(A),this.#c.textContent=A,this.#r())}finally{this.#f===y&&(this.#f=null)}}#r=()=>{this.#l||(this.#l=requestAnimationFrame(()=>{let t=window.getComputedStyle(this.#b),e=parseFloat(t.minHeight),i=parseFloat(t.paddingTop)+parseFloat(t.paddingBottom),n=this.#c.scrollHeight+i,s=Math.max(n,e);s!==this.#m&&(this.#b.style.height=`${s}px`,this.#m=s),this.#l=null}))};#q(f,L){let N;return function(...t){N||(f.apply(this,t),N=!0,setTimeout(()=>N=!1,L))}}async processInput(e,i=!1){if(this.#g&&(clearTimeout(this.#g),this.#g=null),!e.trim()){this.#f&&(this.#f.cancel(),this.#f=null),this.#d=[],this.#s(),requestAnimationFrame(()=>{this.#c.textContent="",this.#r()}),this.#e="";return}if(e===this.#e)return;let n=async()=>{if(!this.#h)try{this.#h=!0;let t=await this.#j.convert(e);e===this.#e&&await this.#u(t,i||e.length>50)}catch(n){e===this.#e&&(console.error("Conversion error:",n),await this.#t(n))}finally{this.#h=!1}};this.#e=e,i?await n():this.#g=setTimeout(n,t.PERFORMANCE.DEBOUNCE)}cleanup(){this.#f&&(this.#f.cancel(),this.#f=null),this.#g&&(clearTimeout(this.#g),this.#g=null),this.#i?.disconnect(),this.#k.clear(),this.#s(),this.#h=!1}}async function C(e=0){try{if(console.log("Attempting WASM load, retry:",e),!("WebAssembly"in window))throw Error("WebAssembly is not supported in this browser");try{await WebAssembly.instantiate(new WebAssembly.Module(new Uint8Array([0,97,115,109,1,0,0,0])))}catch(i){throw Error("JavaScript JIT is required for WebAssembly support.\nTry disabling private browsing or content blockers.")}let n=await fetch("./pkg/dollcode_wasm_bg.wasm");if(!n.ok)throw Error(`WASM file not found: ${n.status}`);console.log("WASM file found, attempting module import");let{default:s,convert:r}=await import("./pkg/dollcode_wasm.js");if(console.log("Module imported, initializing..."),await s(),console.log("WASM initialized"),"function"!=typeof r)throw Error("WASM convert function not found");return{convert:r}}catch(o){if(console.error("WASM load error:",o),e<t.LOADING.MAX_RETRIES){let l=t.LOADING.RETRY_DELAY*(e+1);return console.log(`Retrying in ${l}ms...`),await new Promise(t=>setTimeout(t,l)),C(e+1)}throw o}}async function w(){try{let e=document.querySelector(n.INPUT),i=document.querySelector(n.OUTPUT);if(!e||!i)throw Error("Required elements not found");e.value="";let r=await Promise.race([C(),new Promise((e,i)=>setTimeout(()=>i(Error("WASM load timeout")),t.LOADING.TIMEOUT))]),l=new o(i,r),a=function t(){let e=document.querySelector(n.INFO_BUTTON),i=document.querySelector(n.INFO_PANEL),s=document.querySelector(n.CLOSE_BUTTON);if(!e||!i||!s)return;let r=()=>{i.hidden=!1,i.setAttribute("aria-hidden","false"),e.setAttribute("aria-expanded","true"),document.body.style.overflow="hidden"},o=()=>{i.hidden=!0,i.setAttribute("aria-hidden","true"),e.setAttribute("aria-expanded","false"),document.body.style.overflow=""},l=t=>{"Escape"!==t.key||i.hidden||o()};return document.addEventListener("keydown",l),e.addEventListener("click",r),s.addEventListener("click",o),i.addEventListener("click",t=>{t.target===i&&o()}),()=>{document.removeEventListener("keydown",l)}}(),c="",h=!1,u=null,d=()=>{c&&(l.processInput(c,!0),c=""),h=!1,u=null},$=t=>{let e=t.target.value.replace(/[\n\r\t\u00A0\u2000-\u200C\u200E-\u200F\u2028-\u202F\uFEFF]/g,"");if(e.length<=1){l.processInput(e,!0);return}h||(h=!0,u=requestAnimationFrame(d)),c=e};return e.addEventListener("input",$,{passive:!0}),()=>{l.cleanup(),a(),e.removeEventListener("input",$),u&&cancelAnimationFrame(u)}}catch(p){console.error("Critical initialization error:",p),document.documentElement.classList.remove("js");let E=document.querySelector(n.OUTPUT);if(E){let _=p.message||"Unknown error occurred";E.textContent=`Critical Error: ${_}`,E.classList.add(s.ERROR),E.setAttribute("aria-live","assertive")}throw p}}try{let R=await w();window.addEventListener("pagehide",()=>{R()},{passive:!0})}catch(D){console.error("Fatal application error:",D);let S=document.querySelector(n.OUTPUT);if(S){let b=D.message||"Unknown error occurred";S.textContent=`Fatal Error: ${b}`,S.classList.add(s.ERROR),S.setAttribute("aria-live","assertive")}}}());
+(async function() {
+    const TIMING = {
+        ANIMATION: {
+            CHAR: 4,
+            DELETE: 8,
+            DELETE_FAST: 4,
+            SHAKE: 400,
+            COPY_FEEDBACK: 1200,
+            COPY_FADE: 300,
+            COPY_COOLDOWN: 400,
+            LOADING: 600,
+            LOADING_CLEANUP: 1200
+        },
+        PHYSICS: {
+            VELOCITY_FACTOR: 0.1,
+            MIN_VELOCITY: 0,
+            MAX_VELOCITY: 10,
+            FADE_DISTANCE: 5
+        },
+        PERFORMANCE: {
+            DEBOUNCE: 20,
+            RESIZE_THROTTLE: 20,
+            RAF_TIMEOUT: 80
+        },
+        LOADING: {
+            MAX_RETRIES: 5,
+            RETRY_DELAY: 200,
+            TIMEOUT: 10000
+        },
+        INPUT: {
+            HELD_THRESHOLD: 300
+        }
+    };
+
+    const createLoadingAnimation = (outputElement, finalText = "", options = {}) => {
+        const {
+            duration = TIMING.ANIMATION.LOADING,
+            fps = 60,
+            minChars = 32,
+            maxChars = 126
+        } = options;
+
+        const frameTime = 2400 / fps;
+        let startTime = null;
+        let lastFrameTime = null;
+        let animationFrame = null;
+        let isInterrupted = false;
+
+        const getRandomChar = () => String.fromCharCode(
+            minChars + Math.floor(Math.random() * (maxChars - minChars + 1))
+        );
+
+        const getGlitchText = (target) => {
+            const tempSpan = document.createElement('span');
+            tempSpan.style.visibility = 'hidden';
+            tempSpan.style.whiteSpace = 'nowrap';
+            outputElement.appendChild(tempSpan);
+
+            const computedStyle = window.getComputedStyle(outputElement);
+            const paddingLeft = parseFloat(computedStyle.paddingLeft);
+            const availableWidth = outputElement.clientWidth - paddingLeft + 42;
+
+            let chars = '';
+            while (tempSpan.offsetWidth < availableWidth) {
+                chars += getRandomChar();
+                tempSpan.textContent = chars;
+            }
+
+            tempSpan.textContent = chars;
+            if (tempSpan.offsetWidth >= (availableWidth)) {
+                chars = chars.slice(0, -1);
+            }
+
+            outputElement.removeChild(tempSpan);
+
+            return chars.split('').map((char, i) =>
+                target[i] === ' ' || target[i] === '\u200D' ? target[i] : char
+            ).join('');
+        };
+
+        const animate = (timestamp) => {
+            if (isInterrupted) {
+                outputElement.classList.remove('expanding');
+                animationFrame = null;
+                return;
+            }
+
+            if (!startTime) startTime = timestamp;
+            if (!lastFrameTime) lastFrameTime = timestamp;
+
+            const progress = timestamp - startTime;
+            const delta = timestamp - lastFrameTime;
+
+            if (delta >= frameTime) {
+                lastFrameTime = timestamp;
+                outputElement.classList.add('expanding');
+
+                if (progress < duration) {
+                    outputElement.textContent = getGlitchText(finalText);
+                } else {
+                    outputElement.textContent = finalText;
+                    outputElement.classList.remove('expanding');
+                    animationFrame = null;
+                    return;
+                }
+            }
+
+            animationFrame = requestAnimationFrame(animate);
+        };
+
+        const start = () => {
+            if (animationFrame) cancelAnimationFrame(animationFrame);
+            startTime = null;
+            lastFrameTime = null;
+            isInterrupted = false;
+            animationFrame = requestAnimationFrame(animate);
+        };
+
+        const stop = () => {
+            if (animationFrame) {
+                cancelAnimationFrame(animationFrame);
+                animationFrame = null;
+            }
+            outputElement.textContent = finalText;
+            outputElement.classList.remove('expanding');
+        };
+
+        const interrupt = () => {
+            isInterrupted = true;
+            stop();
+        };
+
+        const destroy = () => {
+            stop();
+            startTime = null;
+            lastFrameTime = null;
+            isInterrupted = false;
+        };
+
+        return { start, stop, destroy, interrupt };
+    };
+
+    const State = Object.freeze({
+        IDLE: 'idle',
+        TYPING: 'typing',
+        DELETING: 'deleting',
+        ERROR: 'error'
+    });
+
+    const SELECTORS = Object.freeze({
+        INPUT: '#input',
+        OUTPUT: '#output',
+        INFO_BUTTON: '#info-button',
+        INFO_PANEL: '#info-panel',
+        CLOSE_BUTTON: '.close-button'
+    });
+
+    const CLASSES = Object.freeze({
+        CONTENT: 'output-content',
+        ERROR: 'error',
+        SHAKE: 'shake'
+    });
+
+    const keyState = new WeakMap();
+
+    class KeyStateManager {
+        constructor() {
+            keyState.set(this, new Map());
+        }
+
+        isKeyHeld(key) {
+            return keyState.get(this).has(key);
+        }
+
+        getHoldTime(key) {
+            const startTime = keyState.get(this).get(key);
+            return startTime ? Date.now() - startTime : 0;
+        }
+
+        isHoldThreshold(key) {
+            return this.getHoldTime(key) > TIMING.INPUT.HELD_THRESHOLD;
+        }
+
+        pressKey(key) {
+            if (!this.isKeyHeld(key)) {
+                keyState.get(this).set(key, Date.now());
+            }
+        }
+
+        releaseKey(key) {
+            keyState.get(this).delete(key);
+        }
+
+        clear() {
+            keyState.get(this).clear();
+        }
+    }
+
+    class OutputManager {
+        #state;
+        #output;
+        #contentDiv;
+        #chars;
+        #lastInput;
+        #currentAnimation;
+        #loadingAnimation;
+        #debounceTimeout;
+        #isProcessing;
+        #resizeObserver;
+        #wasm;
+        #keyState;
+        #heightRAF = null;
+        #lastHeight = 0;
+
+        constructor(outputElement, wasmFunctions) {
+            this.#state = State.IDLE;
+            this.#output = outputElement;
+            this.#wasm = wasmFunctions;
+            this.#chars = [];
+            this.#lastInput = '';
+            this.#currentAnimation = null;
+            this.#debounceTimeout = null;
+            this.#isProcessing = false;
+            this.#keyState = new KeyStateManager();
+
+            this.#setupDOM();
+            this.#setupEventListeners();
+            this.#setupCopyFeedback();
+        }
+
+        #setupDOM() {
+            this.#output.style.visibility = 'hidden';
+            const fragment = document.createDocumentFragment();
+
+            this.#contentDiv = document.createElement('div');
+            this.#contentDiv.className = CLASSES.CONTENT;
+            this.#contentDiv.style.cssText = 'transform: translateZ(0); will-change: transform;';
+
+            const initialText = '▖▌▘▘‍▖▌▖▘‍▖▘▖▌‍';
+            const loadingAnim = createLoadingAnimation(this.#contentDiv, initialText);
+            this.#loadingAnimation = loadingAnim;
+            loadingAnim.start();
+
+            fragment.appendChild(this.#contentDiv);
+            this.#output.textContent = '';
+            this.#output.appendChild(fragment);
+
+            requestAnimationFrame(() => {
+                this.#output.style.visibility = 'visible';
+                setTimeout(() => {
+                    if (this.#loadingAnimation) {
+                        this.#loadingAnimation.destroy();
+                        this.#loadingAnimation = null;
+                    }
+                }, TIMING.ANIMATION.LOADING_CLEANUP);
+            });
+        }
+
+        #setupEventListeners() {
+            this.#resizeObserver = new ResizeObserver(
+                this.#throttle(this.#updateHeight.bind(this), TIMING.PERFORMANCE.RESIZE_THROTTLE)
+            );
+            this.#resizeObserver.observe(this.#contentDiv);
+
+            const observer = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        this.#contentDiv.style.willChange = 'transform, opacity';
+                    } else {
+                        this.#contentDiv.style.willChange = 'auto';
+                    }
+                });
+            });
+
+            observer.observe(this.#output);
+        }
+
+        #setupCopyFeedback() {
+            let hoverFeedback = null;
+            let isHovering = false;
+            let copyAnimationInProgress = false;
+            let copyAnimationTimeout = null;
+
+            const createCopyFeedback = (e) => {
+                const feedback = document.createElement('div');
+                feedback.className = 'copy-feedback';
+
+                feedback.style.left = `${e.clientX + 12}px`;
+                feedback.style.top = `${e.clientY - 12}px`;
+
+                feedback.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.3">
+                    <path d="M9 11.286 10.8 13 15 9m-3-2.409-.154-.164c-1.978-2.096-5.249-1.85-6.927.522-1.489 2.106-1.132 5.085.806 6.729L12 19l6.275-5.322c1.938-1.645 2.295-4.623.806-6.729-1.678-2.372-4.949-2.618-6.927-.522z" stroke-linecap="round" stroke-linejoin="round"/>`;
+
+                document.body.appendChild(feedback);
+
+                const angleRange = 60;
+                const randomAngle = (Math.random() * angleRange - angleRange/2) * (Math.PI / 180);
+
+                const baseAngle = -Math.PI/2;
+                const finalAngle = baseAngle + randomAngle;
+
+                const velocity = 60;
+                const directionX = Math.cos(finalAngle) * velocity;
+                const directionY = Math.sin(finalAngle) * velocity;
+
+                const rotation = (Math.random() * 60 - 30);
+
+                const waveAmplitude = 30;
+                const waveX = Math.cos(finalAngle + Math.PI/2) * waveAmplitude;
+                const waveY = Math.sin(finalAngle + Math.PI/2) * waveAmplitude;
+
+                feedback.style.setProperty('--move-x', `${directionX}px`);
+                feedback.style.setProperty('--move-y', `${directionY}px`);
+                feedback.style.setProperty('--rotation', `${rotation}deg`);
+                feedback.style.setProperty('--wave-x', `${waveX}px`);
+                feedback.style.setProperty('--wave-y', `${waveY}px`);
+
+                return feedback;
+            };
+
+            const showHoverFeedback = (e) => {
+                if (copyAnimationInProgress) return;
+
+                if (!hoverFeedback) {
+                    hoverFeedback = document.createElement('div');
+                    hoverFeedback.className = 'hover-feedback';
+                    hoverFeedback.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.3">
+                        <path d="M10 8V7c0-.943 0-1.414.293-1.707S11.057 5 12 5h5c.943 0 1.414 0 1.707.293S19 6.057 19 7v5c0 .943 0 1.414-.293 1.707S17.943 14 17 14h-1m-9 5h5c.943 0 1.414 0 1.707-.293S14 17.943 14 17v-5c0-.943 0-1.414-.293-1.707S12.943 10 12 10H7c-.943 0-1.414 0-1.707.293S5 11.057 5 12v5c0 .943 0 1.414.293 1.707S6.057 19 7 19" stroke-linecap="round" stroke-linejoin="round"/>`;
+                    document.body.appendChild(hoverFeedback);
+
+                    void hoverFeedback.offsetHeight;
+                }
+
+                hoverFeedback.style.left = `${e.clientX + 12}px`;
+                hoverFeedback.style.top = `${e.clientY - 12}px`;
+                requestAnimationFrame(() => {
+                    hoverFeedback.style.opacity = '1';
+                });
+            };
+
+            this.#contentDiv.addEventListener('mousemove', (e) => {
+                isHovering = true;
+                if (!copyAnimationInProgress) {
+                    showHoverFeedback(e);
+                }
+            });
+
+            this.#contentDiv.addEventListener('mouseleave', () => {
+                isHovering = false;
+                if (hoverFeedback) {
+                    hoverFeedback.style.opacity = '0';
+                    setTimeout(() => {
+                        if (!isHovering && hoverFeedback) {
+                            hoverFeedback.remove();
+                            hoverFeedback = null;
+                        }
+                    }, TIMING.ANIMATION.COPY_FADE);
+                }
+            });
+
+            this.#contentDiv.addEventListener('click', async (e) => {
+                try {
+                    if (copyAnimationTimeout) {
+                        clearTimeout(copyAnimationTimeout);
+                    }
+
+                    copyAnimationInProgress = true;
+
+                    if (hoverFeedback) {
+                        hoverFeedback.style.opacity = '0';
+                        setTimeout(() => {
+                            if (hoverFeedback) {
+                                hoverFeedback.remove();
+                                hoverFeedback = null;
+                            }
+                        }, TIMING.ANIMATION.COPY_FADE);
+                    }
+
+                    await navigator.clipboard.writeText(this.#contentDiv.textContent);
+                    const copyFeedback = createCopyFeedback(e);
+
+                    copyFeedback.classList.add('active');
+
+                    copyFeedback.addEventListener('animationend', () => {
+                        copyFeedback.classList.add('fading');
+
+                        setTimeout(() => {
+                            copyFeedback.remove();
+                            copyAnimationTimeout = setTimeout(() => {
+                                copyAnimationInProgress = false;
+                            }, TIMING.ANIMATION.COPY_COOLDOWN);
+                        }, TIMING.ANIMATION.COPY_FADE);
+                    });
+                } catch (err) {
+                    console.error('Failed to copy:', err);
+                    copyAnimationInProgress = false;
+                }
+            });
+        }
+
+        #clearErrorState() {
+            if (this.#state === State.ERROR) {
+                this.#output.classList.remove(CLASSES.ERROR, CLASSES.SHAKE);
+                this.#state = State.IDLE;
+            }
+        }
+
+        async #showError(error) {
+            if (this.#currentAnimation) {
+                this.#currentAnimation.cancel();
+                this.#currentAnimation = null;
+            }
+
+            this.#chars = [];
+
+            if (this.#state !== State.ERROR) {
+                this.#state = State.ERROR;
+                this.#output.classList.remove(CLASSES.ERROR, CLASSES.SHAKE);
+                void this.#output.offsetWidth; // Force reflow
+                this.#output.classList.add(CLASSES.ERROR, CLASSES.SHAKE);
+
+                setTimeout(() => {
+                    this.#output.classList.remove(CLASSES.SHAKE);
+                }, TIMING.ANIMATION.SHAKE);
+            }
+
+            requestAnimationFrame(() => {
+                this.#contentDiv.textContent = error.toString();
+                this.#updateHeight();
+            });
+        }
+
+        async #setContent(content, immediate = false) {
+            if (this.#currentAnimation) {
+                this.#currentAnimation.cancel();
+                this.#currentAnimation = null;
+            }
+
+            this.#clearErrorState();
+
+            if (immediate) {
+                this.#chars = Array.from(content);
+                this.#contentDiv.textContent = content;
+                this.#updateHeight();
+                return;
+            }
+
+            const animation = {
+                id: Symbol('animation'),
+                cancelled: false,
+                cancel() { this.cancelled = true; }
+            };
+            this.#currentAnimation = animation;
+
+            try {
+                const oldChars = [...this.#chars];
+                const newChars = Array.from(content);
+                let i = 0;
+
+                while (i < oldChars.length && i < newChars.length && oldChars[i] === newChars[i]) i++;
+
+                const updateContent = () => {
+                    if (!animation.cancelled) {
+                        this.#contentDiv.textContent = this.#chars.join('');
+                    }
+                };
+
+                if (oldChars.length > i) {
+                    this.#state = State.DELETING;
+                    while (this.#chars.length > i && !animation.cancelled) {
+                        this.#chars.pop();
+                        requestAnimationFrame(updateContent);
+                        const speed = this.#keyState.isHoldThreshold('Backspace') ?
+                            TIMING.ANIMATION.DELETE_FAST : TIMING.ANIMATION.DELETE;
+                        await new Promise(r => setTimeout(r, speed));
+                    }
+                }
+
+                if (!animation.cancelled) {
+                    this.#state = State.TYPING;
+                    while (i < newChars.length && !animation.cancelled) {
+                        this.#chars.push(newChars[i++]);
+                        requestAnimationFrame(updateContent);
+                        await new Promise(r => setTimeout(r, TIMING.ANIMATION.CHAR));
+                    }
+                }
+
+                if (!animation.cancelled) {
+                    this.#state = State.IDLE;
+                    this.#chars = Array.from(content);
+                    this.#contentDiv.textContent = content;
+                    this.#updateHeight();
+                }
+            } finally {
+                if (this.#currentAnimation === animation) {
+                    this.#currentAnimation = null;
+                }
+            }
+        }
+
+        #updateHeight = () => {
+            if (!this.#heightRAF) {
+                this.#heightRAF = requestAnimationFrame(() => {
+                    const computedStyle = window.getComputedStyle(this.#output);
+                    const minHeight = parseFloat(computedStyle.minHeight);
+                    const padding = parseFloat(computedStyle.paddingTop) + parseFloat(computedStyle.paddingBottom);
+                    const contentHeight = this.#contentDiv.scrollHeight + padding;
+
+                    const newHeight = Math.max(contentHeight, minHeight);
+
+                    if (newHeight !== this.#lastHeight) {
+                        this.#output.style.height = `${newHeight}px`;
+                        this.#lastHeight = newHeight;
+                    }
+
+                    this.#heightRAF = null;
+                });
+            }
+        }
+
+        #throttle(func, limit) {
+            let inThrottle;
+            return function(...args) {
+                if (!inThrottle) {
+                    func.apply(this, args);
+                    inThrottle = true;
+                    setTimeout(() => inThrottle = false, limit);
+                }
+            };
+        }
+
+        async processInput(value, immediate = false) {
+            if (this.#loadingAnimation) {
+                this.#loadingAnimation.interrupt();
+                this.#loadingAnimation = null;
+            }
+
+            if (this.#debounceTimeout) {
+                clearTimeout(this.#debounceTimeout);
+                this.#debounceTimeout = null;
+            }
+
+            if (!value.trim()) {
+                if (this.#currentAnimation) {
+                    this.#currentAnimation.cancel();
+                    this.#currentAnimation = null;
+                }
+                this.#chars = [];
+                this.#clearErrorState();
+                requestAnimationFrame(() => {
+                    this.#contentDiv.textContent = '';
+                    this.#updateHeight();
+                });
+                this.#lastInput = '';
+                return;
+            }
+
+            if (value === this.#lastInput) return;
+
+            const process = async () => {
+                if (this.#isProcessing) return;
+
+                try {
+                    this.#isProcessing = true;
+                    const result = await this.#wasm.convert(value);
+
+                    if (value === this.#lastInput) {
+                        await this.#setContent(result, immediate || value.length > 50);
+                    }
+                } catch (err) {
+                    if (value === this.#lastInput) {
+                        console.error('Conversion error:', err);
+                        await this.#showError(err);
+                    }
+                } finally {
+                    this.#isProcessing = false;
+                }
+            };
+
+            this.#lastInput = value;
+
+            if (immediate) {
+                await process();
+            } else {
+                this.#debounceTimeout = setTimeout(process, TIMING.PERFORMANCE.DEBOUNCE);
+            }
+        }
+
+        cleanup() {
+            if (this.#currentAnimation) {
+                this.#currentAnimation.cancel();
+                this.#currentAnimation = null;
+            }
+            if (this.#debounceTimeout) {
+                clearTimeout(this.#debounceTimeout);
+                this.#debounceTimeout = null;
+            }
+            this.#resizeObserver?.disconnect();
+            this.#keyState.clear();
+            this.#clearErrorState();
+            this.#isProcessing = false;
+        }
+    }
+
+    function setupInfoPanel() {
+        const infoButton = document.querySelector(SELECTORS.INFO_BUTTON);
+        const infoPanel = document.querySelector(SELECTORS.INFO_PANEL);
+        const closeButton = document.querySelector(SELECTORS.CLOSE_BUTTON);
+
+        if (!infoButton || !infoPanel || !closeButton) return;
+
+        const showPanel = () => {
+            infoPanel.hidden = false;
+            infoPanel.setAttribute('aria-hidden', 'false');
+            infoButton.setAttribute('aria-expanded', 'true');
+            document.body.style.overflow = 'hidden';
+        };
+
+        const hidePanel = () => {
+            infoPanel.hidden = true;
+            infoPanel.setAttribute('aria-hidden', 'true');
+            infoButton.setAttribute('aria-expanded', 'false');
+            document.body.style.overflow = '';
+        };
+
+        const handleKeydown = (e) => {
+            if (e.key === 'Escape' && !infoPanel.hidden) {
+                hidePanel();
+            }
+        };
+
+        document.addEventListener('keydown', handleKeydown);
+        infoButton.addEventListener('click', showPanel);
+        closeButton.addEventListener('click', hidePanel);
+
+        infoPanel.addEventListener('click', (e) => {
+            if (e.target === infoPanel) hidePanel();
+        });
+
+        return () => {
+            document.removeEventListener('keydown', handleKeydown);
+        };
+    }
+
+    async function loadWasm(retryCount = 0) {
+        try {
+            console.log('Attempting WASM load, retry:', retryCount);
+
+            if (!('WebAssembly' in window)) {
+                throw new Error('WebAssembly is not supported in this browser');
+            }
+
+            try {
+                await WebAssembly.instantiate(new WebAssembly.Module(new Uint8Array([
+                    0x0, 0x61, 0x73, 0x6d, 0x1, 0x0, 0x0, 0x0
+                ])));
+            } catch (e) {
+                throw new Error('JavaScript JIT is required for WebAssembly support.\nTry disabling private browsing or content blockers.');
+            }
+
+            const wasmCheck = await fetch('./pkg/dollcode_wasm_bg.wasm');
+            if (!wasmCheck.ok) {
+                throw new Error(`WASM file not found: ${wasmCheck.status}`);
+            }
+            console.log('WASM file found, attempting module import');
+
+            const { default: init, convert } = await import('./pkg/dollcode_wasm.js');
+            console.log('Module imported, initializing...');
+
+            await init();
+            console.log('WASM initialized');
+
+            if (typeof convert !== 'function') {
+                throw new Error('WASM convert function not found');
+            }
+
+            return { convert };
+        } catch (error) {
+            console.error('WASM load error:', error);
+            if (retryCount < TIMING.LOADING.MAX_RETRIES) {
+                const delay = TIMING.LOADING.RETRY_DELAY * (retryCount + 1);
+                console.log(`Retrying in ${delay}ms...`);
+                await new Promise(r => setTimeout(r, delay));
+                return loadWasm(retryCount + 1);
+            }
+            throw error;
+        }
+    }
+
+    async function setupApp() {
+        try {
+            const input = document.querySelector(SELECTORS.INPUT);
+            const output = document.querySelector(SELECTORS.OUTPUT);
+
+            if (!input || !output) {
+                throw new Error('Required elements not found');
+            }
+
+            input.value = '';
+
+            const wasmModule = await Promise.race([
+                loadWasm(),
+                new Promise((_, reject) =>
+                    setTimeout(() => reject(new Error('WASM load timeout')),
+                    TIMING.LOADING.TIMEOUT)
+                )
+            ]);
+
+            const outputManager = new OutputManager(output, wasmModule);
+            const cleanupInfoPanel = setupInfoPanel();
+
+            let inputBuffer = '';
+            let isBuffering = false;
+            let rafId = null;
+
+            const flushBuffer = () => {
+                if (inputBuffer) {
+                    outputManager.processInput(inputBuffer, true);
+                    inputBuffer = '';
+                }
+                isBuffering = false;
+                rafId = null;
+            };
+
+            const handleInput = (e) => {
+                const value = e.target.value.replace(/[\n\r\t\u00A0\u2000-\u200C\u200E-\u200F\u2028-\u202F\uFEFF]/g, '');
+
+                if (value.length <= 1) {
+                    outputManager.processInput(value, true);
+                    return;
+                }
+
+                if (!isBuffering) {
+                    isBuffering = true;
+                    rafId = requestAnimationFrame(flushBuffer);
+                }
+                inputBuffer = value;
+            };
+
+            input.addEventListener('input', handleInput, { passive: true });
+
+            return () => {
+                outputManager.cleanup();
+                cleanupInfoPanel();
+                input.removeEventListener('input', handleInput);
+                if (rafId) cancelAnimationFrame(rafId);
+            };
+
+        } catch (err) {
+            console.error("Critical initialization error:", err);
+            document.documentElement.classList.remove('js');
+
+            const output = document.querySelector(SELECTORS.OUTPUT);
+            if (output) {
+                const errorMessage = err.message || 'Unknown error occurred';
+                output.textContent = `Critical Error: ${errorMessage}`;
+                output.classList.add(CLASSES.ERROR);
+                output.setAttribute('aria-live', 'assertive');
+            }
+            throw err;
+        }
+    }
+
+    try {
+        const cleanup = await setupApp();
+        window.addEventListener('pagehide', () => {
+            cleanup();
+        }, { passive: true });
+    } catch (err) {
+        console.error("Fatal application error:", err);
+        const output = document.querySelector(SELECTORS.OUTPUT);
+        if (output) {
+            const errorMessage = err.message || 'Unknown error occurred';
+            output.textContent = `Fatal Error: ${errorMessage}`;
+            output.classList.add(CLASSES.ERROR);
+            output.setAttribute('aria-live', 'assertive');
+        }
+    }
+})();

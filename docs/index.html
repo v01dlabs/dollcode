@@ -12,13 +12,15 @@
     <meta property="og:url" content="https://dollcode.v01dlabs.sh">
     <link rel="preload" href="font.css" as="style">
     <link rel="preload" href="style.css" as="style">
-    <link rel="preload" href="./pkg/dollcode_wasm_bg.wasm" as="fetch" type="application/wasm" crossorigin>
     <link rel="preload" href="./assets/icon.png" as="image">
     <link rel="modulepreload" href="./pkg/dollcode_wasm.js">
     <link rel="stylesheet" href="font.css">
     <link rel="stylesheet" href="style.css">
     <link rel="icon" href="favicon.ico">
     <link rel="apple-touch-icon" href="assets/icon.png">
+    <meta name="color-scheme" content="dark">
+    <meta name="theme-color" content="#0f1214">
+    <meta name="supported-color-schemes" content="dark">
     <meta http-equiv="Content-Security-Policy" content="
         default-src 'self';
         script-src 'self' 'wasm-unsafe-eval' blob: 'unsafe-inline';
@@ -32,32 +34,28 @@
     <meta http-equiv="Permissions-Policy" content="interest-cohort=()">
     <title>dollcode</title>
     <style>
+        body > *:not(noscript) {
+            visibility: hidden;
+        }
+        .js body > *:not(noscript) {
+            visibility: visible;
+        }
         body {
             margin: 0;
             background: #0F1214;
-            opacity: 0;
-        }
-        .js body {
-            opacity: 1;
-            transition: opacity 0.1s;
-        }
-        noscript {
-            display: none;
-        }
-        .no-js noscript {
-            display: block;
         }
     </style>
     <script>
         document.documentElement.classList.add('js');
-        window.addEventListener('load', () => document.body.style.opacity = '1');
     </script>
 </head>
 <body>
     <noscript>
         <div class="noscript-message">
-            <h2>JavaScript Required</h2>
-            <p>dollcode requires JavaScript and WebAssembly to operate. Please enable JavaScript and reload the page.</p>
+            <p>
+                <h2>JavaScript Required</h2>
+                dollcode requires JavaScript and WebAssembly to operate. Please enable JavaScript and reload the page.
+            </p>
         </div>
     </noscript>
     <header class="header" role="banner">
